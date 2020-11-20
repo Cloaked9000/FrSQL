@@ -19,7 +19,9 @@ enum class Opcode : uint8_t
     COMP_GT = 9,
     COMP_LT = 10,
     LOAD_COL = 11,
-    QUIT = 12
+    LOAD_ALL = 12,
+    EXEC_SUBQUERY = 13,
+    QUIT = 14
 };
 
 #endif //TESTDB_OPCODE_H

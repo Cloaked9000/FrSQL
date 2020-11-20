@@ -49,12 +49,21 @@ public:
             SELECT = 31,
             WHERE = 32,
             FROM = 33,
-            TokenCount = 34, //Keep at end
+            LIMIT = 34,
+            INSERT = 35,
+            INTO = 36,
+            VALUES = 37,
+            SHOW = 38,
+            TABLES = 39,
+            DESC = 40,
+            CREATE = 41,
+            TABLE = 42,
+            TokenCount = 43, //Keep at end
         };
 
-        const std::string &str()
+        [[nodiscard]] const std::string &str() const
         {
-            static std::array<std::string, 34> types = {
+            static std::array<std::string, 43> types = {
                     "(",
                     ")",
                     "EOI",
@@ -89,6 +98,15 @@ public:
                     "SELECT",
                     "WHERE",
                     "FROM",
+                    "LIMIT",
+                    "INSERT",
+                    "INTO",
+                    "VALUES",
+                    "SHOW",
+                    "TABLES",
+                    "DESC",
+                    "CREATE",
+                    "TABLE",
             };
             static_assert(std::tuple_size<decltype(types)>::value == Type::TokenCount, "types needs updating");
             return types[type];
@@ -196,7 +214,7 @@ public:
      *
      * @return The current line number
      */
-    size_t get_line_number();
+    size_t get_line_number() const;
 
     /*!
      * Gets current token offset

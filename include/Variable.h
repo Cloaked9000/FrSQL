@@ -2,6 +2,7 @@
 #define COMPILER_VARIABLE_H
 #include <string>
 #include <cstring>
+#include <exceptions/SemanticError.h>
 
 class Variable
 {

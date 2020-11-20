@@ -5,20 +5,34 @@
 #ifndef TESTDB_QUERYVM_H
 #define TESTDB_QUERYVM_H
 
+#include <utility>
+#include <vector>
+#include <memory>
 #include "Variable.h"
 
 class Table;
 class Statement;
+class StorageEngine;
 typedef std::vector<Variable> row_t;
 class QueryVM
 {
 public:
+    QueryVM(std::shared_ptr<StorageEngine> storage_engine);
     bool fetch_row(row_t *row);
     void eval_stmt(Statement *stmt);
+    void reset();
 
 private:
-    void eval_select(Statement *stmt);
-    void exec(Statement *stmt, std::string_view bytecode);
+    bool run_cycle();
+    bool run_select_cycle();
+    bool run_insert_cycle();
+    bool run_show_cycle();
+    bool run_desc_cycle();
+    void eval_select();
+    void eval_insert();
+    void eval_show();
+    void eval_desc();
+    size_t exec(Statement *stmt, std::string_view bytecode);
 
     template<typename ...Args>
     inline void push(Args &&...args)
@@ -35,10 +49,34 @@ private:
         return var;
     }
 
-    bool finalised;
-    Statement *stmt;
-    Table *table;
+    inline void push_state()
+    {
+        state_stack.emplace_back(state);
+    }
+
+    inline void pop_state()
+    {
+        if(state_stack.empty())
+            throw SemanticError("State stack empty!");
+        state = state_stack.back();
+        state_stack.pop_back();
+    }
+
+    struct State
+    {
+        bool finalised;
+        Statement *stmt;
+        std::shared_ptr<Table> table;
+        size_t row;
+    };
+
+    // State
+    State state;
     std::vector<Variable> stack;
+    std::vector<State> state_stack;
+
+    // Dependencies
+    std::shared_ptr<StorageEngine> storage_engine;
 };
 
 

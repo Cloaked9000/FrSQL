@@ -1,6 +1,8 @@
 #include <stdexcept>
 #include <array>
 #include <Lexer.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 Lexer::Lexer()
 : line_number(0),
@@ -11,9 +13,18 @@ Lexer::Lexer()
         {"else",  Token::ELSE},
         {"SELECT",  Token::SELECT},
         {"WHERE",  Token::WHERE},
-        {"FROM", Token::FROM}}
+        {"FROM", Token::FROM},
+        {"LIMIT", Token::LIMIT},
+        {"INSERT", Token::INSERT},
+        {"INTO", Token::INTO},
+        {"VALUES", Token::VALUES},
+        {"SHOW", Token::SHOW},
+        {"TABLES", Token::TABLES},
+        {"DESC", Token::DESC},
+        {"CREATE", Token::CREATE},
+        {"TABLE", Token::TABLE},
+}
 {
-
 }
 
 bool Lexer::lex(std::string data_)
@@ -206,7 +217,7 @@ bool Lexer::legal_lookahead(Token::Type token)
     throw SyntaxError("Unexpected token '" + current().str() + "'. Expected: '" + Token(token).str() + "'");
 }
 
-size_t Lexer::get_line_number()
+size_t Lexer::get_line_number() const
 {
     return line_number;
 }
