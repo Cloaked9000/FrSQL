@@ -8,12 +8,20 @@
 
 #include <unordered_map>
 #include <vector>
+#include <optional>
 #include <algorithm>
+#include <list>
 #include "Variable.h"
+#include "TableMetadata.h"
 
 class Table
 {
 public:
+    explicit Table(TableMetadata metadata)
+        : metadata(std::move(metadata))
+    {
+
+    }
 
     [[nodiscard]] const Variable &load_col(size_t offset, size_t index) const
     {
@@ -25,6 +33,11 @@ public:
         return cols[offset];
     }
 
+    void inline delete_row(size_t offset)
+    {
+        cols.erase(cols.begin() + offset);
+    }
+
     [[nodiscard]] inline size_t row_count() const
     {
         return cols.size();
@@ -32,38 +45,58 @@ public:
 
     inline void insert(std::vector<Variable> values)
     {
+        for (auto& val : values)
+        {
+            if (val.type == Variable::Type::STRING)
+            {
+                strings.emplace_back(val.store.str, val.store.len);
+                val.store.str = strings.back().data();
+            }
+        }
         cols.emplace_back(std::move(values));
     }
 
     inline std::string_view get_column_name(size_t col)
     {
-        return col_names.at(col);
+        return metadata.columns.at(col).name;
     }
 
-    inline size_t get_column_count()
+    [[nodiscard]] inline size_t get_column_count() const
     {
-        return col_names.size();
+        return metadata.columns.size();
     }
 
     inline std::optional<size_t> get_column_index(std::string_view name)
     {
-        for(size_t a = 0; a < col_names.size(); ++a)
+        for(size_t a = 0; a < metadata.columns.size(); ++a)
         {
-            if(col_names[a] == name)
+            if(metadata.columns[a].name == name)
             {
-                return a;
+                return std::make_optional(a);
             }
         }
 
         return {};
     }
 
+    inline const TableMetadata& get_metadata()
+    {
+        return metadata;
+    }
 
+    void clear()
+    {
+        strings.clear();
+        for (auto& col : cols)
+        {
+            col.clear();
+        }
+    }
 
 private:
-
-    std::vector<std::vector<Variable>> cols = {{Variable(20), Variable("Bob", 3)}, {Variable(50), Variable("Dave", 4)}};
-    std::vector<std::string_view> col_names = {"age", "name"};
+    TableMetadata metadata;
+    std::vector<std::vector<Variable>> cols;
+    std::list<std::string> strings;
 };
 
 

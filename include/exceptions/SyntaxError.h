@@ -2,13 +2,13 @@
 #define COMPILER_SYNTAXERROR_H
 
 
-#include <stdexcept>
+#include "DatabaseError.h"
 
-class SyntaxError : public std::runtime_error
+class SyntaxError : public DatabaseError
 {
 public:
-    explicit SyntaxError(const std::string &msg)
-    : std::runtime_error(msg)
+    SyntaxError(const std::string &msg)
+    : DatabaseError(msg)
     {}
 };
 

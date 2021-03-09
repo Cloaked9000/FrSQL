@@ -4,44 +4,66 @@
 #include <memory>
 #include <string>
 #include <chrono>
-#include <StorageEngine.h>
+#include <frsql.h>
+
+#ifdef BUILD_TESTS
+#include <gtest/gtest.h>
+#endif
+#include <frsql.h>
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
-int main()
+int main(int argc, char **argv)
 {
-    auto storage = std::make_shared<StorageEngine>();
+#ifdef BUILD_TESTS
+    if(argc > 1 && strcmp(argv[1], "test") == 0)
+    {
+        ::testing::InitGoogleTest(&argc, argv);
+        return RUN_ALL_TESTS();
+    }
+#endif
+
+    Frsql frsql;
     while(true)
     {
-        std::string query = "SELECT *, (select 5 * 5) FROM tab WHERE a == (SELECT a FROM tab WHERE b == \"bob\");";
+        std::string query;
         std::cout << "Query: ";
         std::getline(std::cin, query);
-        auto lexer = std::make_shared<Lexer>();
-        lexer->lex(query);
 
-        Parser parser(storage, lexer);
-        Statement stmt;
-        parser.parse(&stmt);
-
-        QueryVM vm(storage);
-        vm.eval_stmt(&stmt);
-        row_t row;
-        auto beg = std::chrono::system_clock::now();
-        while(vm.fetch_row(&row))
+#ifdef BUILD_TESTS
+        if (query == "test")
         {
-            for(auto &r : row)
-            {
-                if(r.type == Variable::Type::INT)
-                    std::cout << r.store.int64 << ", ";
-                else if(r.type == Variable::Type::STRING)
-                    std::cout << std::string(r.store.str, r.store.len) << ", ";
-            }
-            std::cout << "\n";
+            ::testing::InitGoogleTest(&argc, argv);
+            return RUN_ALL_TESTS();
         }
-        auto end = std::chrono::system_clock::now();
-        std::cout << "Time taken: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - beg).count() << "ms" << std::endl;
-        vm.reset();
-        //  return 0;
+#endif
+
+        try
+        {
+            frsql.exec(query, [&](const row_t& row) {
+                for (auto& r : row)
+                {
+                    if (r.type == Variable::Type::INT)
+                    {
+                        std::cout << r.store.int64 << ", ";
+                    }
+                    else if (r.type == Variable::Type::STRING)
+                    {
+                        std::cout << std::string_view(r.store.str, r.store.len) << ", ";
+                    }
+
+                }
+
+                if (!row.empty())
+                {
+                    std::cout << "\n" << std::endl;
+                }
+                });
+        }
+        catch (const DatabaseError &e)
+        {
+            std::cout << "Error: " << e.what() << std::endl;
+        }
     }
 
     return 0;

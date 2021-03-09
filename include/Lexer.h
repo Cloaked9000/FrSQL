@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <algorithm>
 #include <unordered_map>
+#include <string_view>
+#include <array>
 #include <exceptions/SyntaxError.h>
 
 class Lexer
@@ -58,12 +60,13 @@ public:
             DESC = 40,
             CREATE = 41,
             TABLE = 42,
-            TokenCount = 43, //Keep at end
+            DELETE = 43,
+            TokenCount = 44, //Keep at end
         };
 
         [[nodiscard]] const std::string &str() const
         {
-            static std::array<std::string, 43> types = {
+            static std::array<std::string, 44> types = {
                     "(",
                     ")",
                     "EOI",
@@ -107,6 +110,7 @@ public:
                     "DESC",
                     "CREATE",
                     "TABLE",
+                    "DELETE",
             };
             static_assert(std::tuple_size<decltype(types)>::value == Type::TokenCount, "types needs updating");
             return types[type];
@@ -114,12 +118,12 @@ public:
 
         Token() = default;
 
-        explicit Token(Type type_, std::string data_ = "")
-                : type(type_), data(std::move(data_))
+        explicit Token(Type type_, std::string_view data_ = "")
+        : type(type_), data(data_)
         {}
 
         Type type;
-        std::string data;
+        std::string_view data;
     };
 
     /*!
@@ -128,7 +132,7 @@ public:
      * @param data The data to lex
      * @return True on success, false on failure
      */
-    bool lex(std::string data);
+    bool lex(std::string_view data);
 
     /*!
      * Gets the current token
@@ -164,13 +168,6 @@ public:
      * @return True if it matches, false otherwise.
      */
     bool legal_lookahead(Token::Type token);
-
-    /*!
-     * Register a variable with the lexer, so that it can properly classify them.
-     *
-     * @param name Name of the variable to register
-     */
-    void register_variable(std::string name);
 
     /*!
      * Checks to see if the current token matches any of the given arguments.
@@ -239,10 +236,9 @@ public:
 private:
     size_t token_offset;
     size_t line_number;
-    std::string data;
+    std::string_view data;
     Token current_token;
     std::unordered_map<std::string, Token::Type> types;
-    std::unordered_map<std::string, int> variables;
 };
 
 #endif //COMPILER_LEXER_H

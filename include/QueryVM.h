@@ -12,12 +12,12 @@
 
 class Table;
 class Statement;
-class StorageEngine;
+class Database;
 typedef std::vector<Variable> row_t;
 class QueryVM
 {
 public:
-    QueryVM(std::shared_ptr<StorageEngine> storage_engine);
+    QueryVM(std::shared_ptr<Database> database);
     bool fetch_row(row_t *row);
     void eval_stmt(Statement *stmt);
     void reset();
@@ -28,10 +28,8 @@ private:
     bool run_insert_cycle();
     bool run_show_cycle();
     bool run_desc_cycle();
-    void eval_select();
-    void eval_insert();
-    void eval_show();
-    void eval_desc();
+    bool run_create_cycle();
+    bool run_delete_cycle();
     size_t exec(Statement *stmt, std::string_view bytecode);
 
     template<typename ...Args>
@@ -44,7 +42,7 @@ private:
     {
         if(stack.empty())
             throw SemanticError("Stack empty!");
-        Variable var = stack.back();
+        Variable var = std::move(stack.back());
         stack.pop_back();
         return var;
     }
@@ -64,6 +62,19 @@ private:
 
     struct State
     {
+        State()
+        {
+            reset();
+        }
+
+        void reset()
+        {
+            finalised = false;
+            stmt = nullptr;
+            table = nullptr;
+            row = 0;
+        }
+
         bool finalised;
         Statement *stmt;
         std::shared_ptr<Table> table;
@@ -76,7 +87,7 @@ private:
     std::vector<State> state_stack;
 
     // Dependencies
-    std::shared_ptr<StorageEngine> storage_engine;
+    std::shared_ptr<Database> database;
 };
 
 

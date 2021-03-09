@@ -7,81 +7,50 @@
 #include <Lexer.h>
 #include <string>
 #include <string_view>
+#include <stdint.h>
 #include "QueryVM.h"
 #include "Statement.h"
-#include "StorageEngine.h"
+#include "Database.h"
 #include "Table.h"
 
-QueryVM::QueryVM(std::shared_ptr<StorageEngine> storage_engine)
-: storage_engine(std::move(storage_engine))
+#ifndef _UNISTD_H
+#define _UNISTD_H
+#ifdef _WIN64
+#define ssize_t __int64
+#else
+#define ssize_t long
+#endif
+#endif
+
+QueryVM::QueryVM(std::shared_ptr<Database> database)
+: database(std::move(database))
 {
 
 }
 
 void QueryVM::eval_stmt(Statement *stmt_)
 {
-    state.table = nullptr;
-    state.finalised = false;
+    state.reset();
     state.stmt = stmt_;
-    state.row = 0;
-    switch(state.stmt->query_type)
+
+    //Load in table if specified
+    if (state.stmt->table_id != ID_NONE)
     {
-        case Lexer::Token::Type::SELECT:
-            eval_select();
-            break;
-        case Lexer::Token::Type::INSERT:
-            eval_insert();
-            break;
-        case Lexer::Token::Type::SHOW:
-            eval_show();
-            break;
-        case Lexer::Token::Type::DESC:
-            eval_desc();
-            break;
-        default:
-            throw SemanticError("Can't evaluate unknown query type!");
-    }
-}
-void QueryVM::eval_select()
-{
-    //Setup state - temp
-    if(!state.stmt->table_name.empty())
-    {
-        state.table = storage_engine->load_table(state.stmt->table_name);
+        state.table = database->load_table(state.stmt->table_id);
     }
 
     //Evaluate any LIMIT clauses
-    if(!state.stmt->compiled_limit_clause.empty())
+    if (!state.stmt->compiled_limit_clause.empty())
     {
         exec(state.stmt, state.stmt->compiled_limit_clause);
         Variable var = pop();
-        if(var.type != Variable::Type::INT)
+        if (var.type != Variable::Type::INT)
         {
             throw SemanticError("Limit must be integral");
         }
         state.stmt->evaluated_limit = var.store.int64;
     }
 }
-
-void QueryVM::eval_insert()
-{
-    //Setup state - temp
-    if(!state.stmt->table_name.empty())
-    {
-        state.table = storage_engine->load_table(state.stmt->table_name);
-    }
-}
-
-void QueryVM::eval_show()
-{
-
-}
-
-void QueryVM::eval_desc()
-{
-    state.table = storage_engine->load_table(state.stmt->table_name);
-}
-
 
 bool QueryVM::run_cycle()
 {
@@ -98,10 +67,49 @@ bool QueryVM::run_cycle()
             return run_show_cycle();
         case Lexer::Token::Type::DESC:
             return run_desc_cycle();
+        case Lexer::Token::Type::CREATE:
+            return run_create_cycle();
+        case Lexer::Token::Type::DELETE:
+            return run_delete_cycle();
         default:
             break;
     }
     abort();
+}
+
+bool QueryVM::run_delete_cycle()
+{
+    //Delete operations complete within a single cycle always
+    state.finalised = true;
+
+    //If there's no where clause, just delete everything in the table
+    if (state.stmt->compiled_where_clause.empty())
+    {
+        auto table = database->load_table(state.stmt->table_id);
+        table->clear();
+        return true;
+    }
+
+    //Else we have a where clause, evaluate it against each row
+    while (state.row < state.table->row_count())
+    {
+        exec(state.stmt, state.stmt->compiled_where_clause);
+        auto where_matched = pop();
+        if (where_matched.store.int64 > 0)
+        {
+            state.table->delete_row(state.row);
+            continue;
+        }
+        state.row++;
+    }
+
+    return true;
+}
+
+bool QueryVM::run_create_cycle()
+{
+    database->create_table(state.stmt->new_table_name, state.stmt->column_definitions);
+    return state.finalised = true;
 }
 
 bool QueryVM::run_select_cycle()
@@ -135,10 +143,10 @@ bool QueryVM::run_insert_cycle()
     //Evaluate the insert values
     size_t value_count = exec(state.stmt, state.stmt->compiled_insert_values_clause);
     std::vector<Variable> ret;
-    ret.reserve(value_count);
-    for(size_t a = 0; a < value_count; a++)
+    ret.resize(value_count);
+    for(size_t a = value_count; a-- > 0;)
     {
-        ret.emplace_back(pop());
+        ret[a] = pop();
     }
 
     state.table->insert(std::move(ret));
@@ -147,10 +155,12 @@ bool QueryVM::run_insert_cycle()
 
 bool QueryVM::run_show_cycle()
 {
-    auto table_list = storage_engine->list_tables();
-    for(const auto &tab : table_list)
+    auto table_list = database->list_table_ids();
+    for(const auto &id : table_list)
     {
-        push(tab.data(), tab.size());
+        auto tab = database->load_table(id);
+        const auto &meta = tab->get_metadata();
+        push(meta.name.data(), meta.name.size());
     }
     return state.finalised = true;
 }
@@ -184,10 +194,14 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
 {
     size_t before = stack.size();
     size_t off = 0;
-    static void *dispatch_table[] = {&&do_push_int64, &&do_push_string, &&do_mult, &&do_div, &&do_mod, &&do_sub, &&do_add, &&do_comp_ne, &&do_comp_eq, &&do_comp_gt, &&do_comp_lt, &&do_load_col, &&do_load_all, &&exec_sub_query, &&do_exit};
+    static void *dispatch_table[] = { &&do_exit, &&do_push_int64, &&do_push_string, &&do_mult, &&do_div, &&do_mod, &&do_sub, &&do_add, &&do_comp_ne, &&do_comp_eq, &&do_comp_gt, &&do_comp_lt, &&do_load_col, &&do_load_all, &&exec_sub_query};
     DISPATCH();
     while(true)
     {
+        do_exit:
+        {
+            break;
+        }
         do_push_int64:
         {
             push(*(int64_t*)&bytecode[off + 1]);
@@ -197,7 +211,7 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
         do_push_string:
         {
             const auto strings_off = (uint8_t)bytecode[off + 1];
-            std::string &str = state.stmt->strings[strings_off];
+            std::string_view str = state.stmt->strings[strings_off];
             push(str.data(), str.size());
             CONSUME_BYTES(2);
             DISPATCH();
@@ -264,7 +278,7 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
         do_load_col:
         {
             const auto col_index = (uint8_t)bytecode[off + 1];
-            auto col = state.table->load_col(state.row, stmt->column_redirect[col_index]);
+            const auto &col = state.table->load_col(state.row, stmt->column_redirect[col_index]);
             push(col);
             CONSUME_BYTES(2);
             DISPATCH();
@@ -285,14 +299,12 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
 
             push_state();
             eval_stmt(&state.stmt->nested_statements[query_off]);
-            run_cycle();
+            while(run_cycle());
             pop_state();
 
             CONSUME_BYTES(2);
             DISPATCH();
         };
-        do_exit:
-            break;
     }
 
     if(before > stack.size())

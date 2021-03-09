@@ -12,7 +12,7 @@
 #include "Lexer.h"
 #include "Variable.h"
 #include "Statement.h"
-#include "StorageEngine.h"
+#include "Database.h"
 
 static int tmp_varname = 0;
 
@@ -26,7 +26,7 @@ public:
     Parser(Parser &&) = delete;
 
 
-    Parser(std::shared_ptr<StorageEngine> storage_engine, std::shared_ptr<Lexer> lexer);
+    Parser(std::shared_ptr<Database> database, std::shared_ptr<Lexer> lexer);
 
 
     void parse(Statement *stmt);
@@ -40,6 +40,7 @@ private:
     void show_query(Statement *stmt);
     void desc_query(Statement *stmt);
     void create_query(Statement *stmt);
+    void delete_query(Statement *stmt);
     void table_name(Statement *stmt);
     void result_column(Statement *stmt);
     void column_definition(Statement *stmt);
@@ -63,7 +64,7 @@ private:
     void cap_stmt(std::string &stmt);
 
     //Dependencies
-    std::shared_ptr<StorageEngine> storage_engine;
+    std::shared_ptr<Database> database;
     std::shared_ptr<Lexer> lexer;
 
 };

@@ -6,14 +6,15 @@ An experimental - and very limited- SQL implementation for fun and experimentati
 * INSERT
 * SHOW
 * DESC
+* CREATE
+* DELETE
 
-## (Somewhat) Supported Features:
-* Logical/comparison operators
-* Arithmetic
-* Subqueries
-* Limit
-
-## Demo Queries:
+## Supported Example Queries:
 ```sql
-SELECT (5 * 5), name FROM tab WHERE age > (SELECT age FROM tab WHERE name == "Bob" LIMIT 1);
+CREATE TABLE user(id INT, name STRING, age INT);
+INSERT INTO user VALUES(1, "Bob", 15);
+INSERT INTO user VALUES(2, "Andy", 16);
+SELECT (5 * 5), name FROM user WHERE age > (SELECT age FROM tab WHERE name == "Bob" LIMIT 1);
+DELETE FROM user WHERE age % 2 == 0;
+SELECT * FROM user;
 ```

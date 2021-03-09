@@ -1,5 +1,6 @@
 #include <stdexcept>
 #include <array>
+#include <cctype>
 #include <Lexer.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -23,13 +24,14 @@ Lexer::Lexer()
         {"DESC", Token::DESC},
         {"CREATE", Token::CREATE},
         {"TABLE", Token::TABLE},
+        {"DELETE", Token::DELETE},
 }
 {
 }
 
-bool Lexer::lex(std::string data_)
+bool Lexer::lex(std::string_view data_)
 {
-    data = std::move(data_);
+    data = data_;
     token_offset = 0;
     advance();
     return true;
@@ -44,7 +46,7 @@ void Lexer::advance()
 {
     if(token_offset >= data.size())
     {
-        current_token = Token(Token::EOI);
+        current_token = Token(Token::EOI, "");
         return;
     }
 
@@ -129,9 +131,13 @@ void Lexer::advance()
             case '"':
             {
                 ++token_offset;
-                current_token = Token(Token::STRING);
-                while(data[token_offset] != '"')
-                    current_token.data += data[token_offset++];
+                current_token = Token(Token::STRING, "");
+                const char* beg = &data[token_offset];
+                while (data[token_offset] != '"')
+                {   
+                    token_offset++;
+                }
+                current_token.data = std::string_view(beg, &data[token_offset] - beg);
                 token_offset++;
                 return;
             }
@@ -151,9 +157,14 @@ void Lexer::advance()
                 if((data[token_offset] >= '0' && data[token_offset] <= '9') ||
                    data[token_offset] == '-') //If number, it's an INT type
                 {
-                    current_token = Token(Token::INT);
-                    while((data[token_offset] >= '0' && data[token_offset] <= '9') || data[token_offset] == '-')
-                        current_token.data += data[token_offset++];
+                    current_token = Token(Token::INT, "");
+                    const char* str_begin = &data[token_offset];
+                    while ((data[token_offset] >= '0' && data[token_offset] <= '9') || data[token_offset] == '-')
+                    {
+                        token_offset++;
+                    }
+                    current_token.data = std::string_view(str_begin, &data[token_offset] - str_begin);
+
                     if(current_token.data == "-")
                     {
                         current_token.type = Token::MINUS;
@@ -166,10 +177,13 @@ void Lexer::advance()
                 else //Else ID/TYPE/Variable
                 {
                     //Read in whole thing, assuming it's an ID
-                    current_token = Token(Token::ID);
-                    while((std::isalnum(data[token_offset]) || data[token_offset] == '_' ||
-                           data[token_offset] == '.') && token_offset < data.size())
-                        current_token.data += data[token_offset++];
+                    current_token = Token(Token::ID, "");
+                    const char* str_begin = &data[token_offset];
+                    while ((std::isalnum(data[token_offset]) || data[token_offset] == '_' || data[token_offset] == '.') && token_offset < data.size())
+                    {
+                        token_offset++;
+                    }
+                    current_token.data = std::string_view(str_begin, &data[token_offset] - str_begin);
 
                     //Switch out true/false for integers
                     if(current_token.data == "true")
@@ -184,12 +198,6 @@ void Lexer::advance()
                     }
                     else
                     {
-                        //Or change to variable if it is
-                        if(variables.find(current_token.data) != variables.end())
-                        {
-                            current_token.type = Token::VARIABLE;
-                        }
-
                         //Check if type, change it to TYPE
                         std::string token_upper(current_token.data.size(), '\0');
                         std::transform(current_token.data.begin(), current_token.data.end(), token_upper.begin(), ::toupper);
@@ -214,15 +222,10 @@ bool Lexer::legal_lookahead(Token::Type token)
     if(match(token))
         return true;
 
-    throw SyntaxError("Unexpected token '" + current().str() + "'. Expected: '" + Token(token).str() + "'");
+    throw SyntaxError("Unexpected token '" + current().str() + "'. Expected: '" + Token(token, "").str() + "'");
 }
 
 size_t Lexer::get_line_number() const
 {
     return line_number;
-}
-
-void Lexer::register_variable(std::string name)
-{
-    variables.emplace(std::move(name), 0);
 }

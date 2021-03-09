@@ -1,13 +1,13 @@
 #ifndef COMPILER_SEMANTICERROR_H
 #define COMPILER_SEMANTICERROR_H
 
-#include <stdexcept>
+#include "DatabaseError.h"
 
-class SemanticError : public std::runtime_error
+class SemanticError : public DatabaseError
 {
 public:
-    explicit SemanticError(const std::string &msg)
-    : std::runtime_error(msg)
+    SemanticError(const std::string &msg)
+    : DatabaseError(msg)
     {}
 };
 

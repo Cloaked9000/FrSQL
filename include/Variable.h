@@ -40,6 +40,8 @@ public:
         type = Type::STRING;
     }
 
+    friend bool operator== (const Variable&, const Variable&) noexcept;
+
     Type type;
     union store
     {
@@ -53,16 +55,17 @@ public:
 
 };
 
-inline bool operator==(const Variable &a, const Variable &b)
+inline bool operator==(const Variable& a, const Variable& b) noexcept
 {
-    if(a.type != b.type)
+    if (a.type != b.type)
         return false;
-    if(a.type == Variable::Type::INT)
+    if (a.type == Variable::Type::INT)
         return a.store.int64 == b.store.int64;
-    if(a.type == Variable::Type::STRING)
-        return strcmp(a.store.str, b.store.str) == 0;
+    if (a.type == Variable::Type::STRING)
+        return a.store.len == b.store.len && memcmp(a.store.str, b.store.str, a.store.len) == 0;
     abort();
 }
+
 
 inline bool operator!=(const Variable &a, const Variable &b)
 {
