@@ -47,6 +47,7 @@ private:
 
     void expr(Statement *stmt, std::string &output);
     void expr_(Statement *stmt, std::string &output);
+    void in(Statement *stmt, std::string &output);
     void expr_l2(Statement *stmt, std::string &output);
     void expr_l2_(Statement *stmt, std::string &output);
     void expr_l3(Statement *stmt, std::string &output);
@@ -62,6 +63,7 @@ private:
 
     //Misc
     void cap_stmt(std::string &stmt);
+    void resolve_table_references(Statement *stmt);
 
     //Dependencies
     std::shared_ptr<Database> database;

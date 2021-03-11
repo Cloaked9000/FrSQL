@@ -25,6 +25,7 @@ Lexer::Lexer()
         {"CREATE", Token::CREATE},
         {"TABLE", Token::TABLE},
         {"DELETE", Token::DELETE},
+        {"IN", Token::IN},
 }
 {
 }

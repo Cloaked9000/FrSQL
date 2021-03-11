@@ -61,12 +61,13 @@ public:
             CREATE = 41,
             TABLE = 42,
             DELETE = 43,
-            TokenCount = 44, //Keep at end
+            IN = 44,
+            TokenCount = 45, //Keep at end
         };
 
         [[nodiscard]] const std::string &str() const
         {
-            static std::array<std::string, 44> types = {
+            static std::array<std::string, 45> types = {
                     "(",
                     ")",
                     "EOI",
@@ -111,6 +112,7 @@ public:
                     "CREATE",
                     "TABLE",
                     "DELETE",
+                    "IN",
             };
             static_assert(std::tuple_size<decltype(types)>::value == Type::TokenCount, "types needs updating");
             return types[type];

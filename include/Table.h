@@ -25,7 +25,7 @@ public:
 
     [[nodiscard]] const Variable &load_col(size_t offset, size_t index) const
     {
-        return cols[offset][index];
+        return cols.at(offset).at(index);
     }
 
     [[nodiscard]] inline const std::vector<Variable> &load_row(size_t offset) const

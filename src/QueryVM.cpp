@@ -13,6 +13,8 @@
 #include "Database.h"
 #include "Table.h"
 
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "UnreachableCode"
 #ifndef _UNISTD_H
 #define _UNISTD_H
 #ifdef _WIN64
@@ -189,12 +191,12 @@ bool QueryVM::fetch_row(row_t *row)
 
 //std::cout << "Opcode: " << (int)bytecode[off] << ". " << std::endl;
 #define DISPATCH() goto *dispatch_table[bytecode[off]]
-#define CONSUME_BYTES(x) off += x;
+#define CONSUME_BYTES(x) off += (x);
 size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
 {
     size_t before = stack.size();
     size_t off = 0;
-    static void *dispatch_table[] = { &&do_exit, &&do_push_int64, &&do_push_string, &&do_mult, &&do_div, &&do_mod, &&do_sub, &&do_add, &&do_comp_ne, &&do_comp_eq, &&do_comp_gt, &&do_comp_lt, &&do_load_col, &&do_load_all, &&exec_sub_query};
+    static void *dispatch_table[] = { &&do_exit, &&do_push_int64, &&do_push_string, &&do_mult, &&do_div, &&do_mod, &&do_sub, &&do_add, &&do_comp_ne, &&do_comp_eq, &&do_comp_gt, &&do_comp_lt, &&do_load_col, &&do_load_all, &&exec_sub_query, &&exec_frame_begin, &&exec_frame_end, &&exec_filter_mutual};
     DISPATCH();
     while(true)
     {
@@ -278,7 +280,8 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
         do_load_col:
         {
             const auto col_index = (uint8_t)bytecode[off + 1];
-            const auto &col = state.table->load_col(state.row, stmt->column_redirect[col_index]);
+            const auto col_id = stmt->column_redirect.at(col_index);
+            const auto &col = state.table->load_col(state.row, col_id);
             push(col);
             CONSUME_BYTES(2);
             DISPATCH();
@@ -305,6 +308,36 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
             CONSUME_BYTES(2);
             DISPATCH();
         };
+        exec_frame_begin:
+        {
+            state.frames.emplace_back(stack.size());
+            CONSUME_BYTES(1);
+            DISPATCH();
+        };
+        exec_frame_end:
+        {
+            CONSUME_BYTES(1);
+            DISPATCH();
+        };
+        exec_filter_mutual:
+        {
+            Variable needle;
+            std::vector<Variable> haystack;
+            size_t haystack_count = stack.size() - state.frames.back();
+            state.frames.pop_back();
+
+            for(size_t a = 0; a < haystack_count; a++)
+            {
+                haystack.emplace_back(pop());
+            }
+
+            needle = pop();
+
+            push(std::find(haystack.begin(), haystack.end(), needle) != haystack.end());
+
+            CONSUME_BYTES(1);
+            DISPATCH();
+        };
     }
 
     if(before > stack.size())
@@ -317,3 +350,5 @@ void QueryVM::reset()
     stack.clear();
     state_stack.clear();
 }
+
+#pragma clang diagnostic pop

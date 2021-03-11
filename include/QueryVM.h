@@ -42,7 +42,7 @@ private:
     {
         if(stack.empty())
             throw SemanticError("Stack empty!");
-        Variable var = std::move(stack.back());
+        Variable var = stack.back();
         stack.pop_back();
         return var;
     }
@@ -79,6 +79,7 @@ private:
         Statement *stmt;
         std::shared_ptr<Table> table;
         size_t row;
+        std::vector<size_t> frames;
     };
 
     // State

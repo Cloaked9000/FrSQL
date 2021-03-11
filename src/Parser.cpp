@@ -53,18 +53,7 @@ void Parser::query(Statement *stmt)
     }
 
     //Fill in referenced columns now the table name is known
-    if (stmt->table_id != ID_NONE)
-    {
-        for (size_t a = 0; a < stmt->accessed_columns.size(); a++)
-        {
-            auto table = database->load_table(stmt->table_id);
-            auto index = table->get_column_index(stmt->accessed_columns[a]);
-            if (!index)
-                throw SemanticError("No such column '" + stmt->accessed_columns[a] + "'");
-
-            stmt->column_redirect[a] = *index;
-        }
-    }
+    resolve_table_references(stmt);
 }
 
 void Parser::select_query(Statement *stmt)
@@ -230,6 +219,7 @@ void Parser::expr(Statement *stmt, std::string &output)
 {
     expr_l2(stmt, output);
     expr_(stmt, output);
+    in(stmt, output);
 }
 
 void Parser::expr_(Statement *stmt, std::string &output)
@@ -251,6 +241,37 @@ void Parser::expr_(Statement *stmt, std::string &output)
             output.append(sizeof(uint8_t), (char)Opcode::COMP_NE);
             continue;
         }
+    }
+}
+
+void Parser::in(Statement *stmt, std::string &output)
+{
+    if(lexer->match(Lexer::Token::IN))
+    {
+        lexer->advance();
+        lexer->legal_lookahead(Lexer::Token::OPEN_PARENTHESIS);
+        lexer->advance();
+        output.append(sizeof(uint8_t), (char)Opcode::FRAME_BEGIN);
+
+        if(lexer->match(Lexer::Token::SELECT))
+        {
+            lexer->advance();
+            subselect(stmt, output);
+        }
+        else
+        {
+            expr(stmt, output);
+            while(lexer->match(Lexer::Token::COMMA))
+            {
+                lexer->advance();
+                expr(stmt, output);
+            }
+        }
+
+        lexer->legal_lookahead(Lexer::Token::CLOSE_PARENTHESIS);
+        lexer->advance();
+
+        output.append(sizeof(uint8_t), (char)Opcode::FILTER_MUTUAL);
     }
 }
 
@@ -406,6 +427,16 @@ void Parser::type(Statement *stmt, std::string &output)
     }
 }
 
+void Parser::subselect(Statement *stmt, std::string &output)
+{
+    output.append(sizeof(uint8_t), (char)Opcode::EXEC_SUBQUERY);
+    output.append(sizeof(uint8_t), (char)stmt->nested_statements.size());
+    stmt->nested_statements.emplace_back();
+    Statement *nested = &stmt->nested_statements.back();
+    select_query(nested);
+    resolve_table_references(nested);
+}
+
 void Parser::cap_stmt(std::string &stmt)
 {
     if(stmt.empty())
@@ -413,10 +444,22 @@ void Parser::cap_stmt(std::string &stmt)
     stmt.append(sizeof(uint8_t), (uint8_t)Opcode::QUIT);
 }
 
-void Parser::subselect(Statement *stmt, std::string &output)
+void Parser::resolve_table_references(Statement *stmt)
 {
-    output.append(sizeof(uint8_t), (char)Opcode::EXEC_SUBQUERY);
-    output.append(sizeof(uint8_t), (char)stmt->nested_statements.size());
-    stmt->nested_statements.emplace_back();
-    select_query(&stmt->nested_statements.back());
+    if (stmt->table_id == ID_NONE)
+    {
+        return;
+    }
+
+    for (size_t a = 0; a < stmt->accessed_columns.size(); a++)
+    {
+        auto table = database->load_table(stmt->table_id);
+        auto index = table->get_column_index(stmt->accessed_columns[a]);
+        if (!index)
+        {
+            throw SemanticError("No such column '" + stmt->accessed_columns[a] + "'");
+        }
+
+        stmt->column_redirect[a] = *index;
+    }
 }
