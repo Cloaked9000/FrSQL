@@ -91,5 +91,7 @@ INSTANTIATE_TEST_SUITE_P(
 		Expected("SELECT 10 IN (11);", { {Variable(0)} }),
 		Expected("SELECT 10 IN (11, 15);", { {Variable(0)} }),
 		Expected("SELECT 1 IN (SELECT 5 in(10, 5));", { {Variable(1)} }),
-		Expected("SELECT 1 IN (SELECT 5 in(7, 5));", { {Variable(1)} })
+		Expected("SELECT 1 IN (SELECT 5 in(7, 5));", { {Variable(1)} }),
+		Expected("SELECT 7 IN (SELECT 5, 7, 8);", { {Variable(1)} }),
+		Expected("SELECT 10 IN (SELECT 5, 7, 8);", { {Variable(0)} })
 	));
