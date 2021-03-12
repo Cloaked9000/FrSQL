@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <stdint.h>
+#include <span>
 #include "QueryVM.h"
 #include "Statement.h"
 #include "Database.h"
@@ -122,7 +123,7 @@ bool QueryVM::run_select_cycle()
         auto where_matched = pop(); //pop match result from stack
         if(where_matched.store.int64 == 0)
         {
-            state.finalised = state.table == nullptr ? true : ++state.row >= state.table->row_count();
+            state.finalised = state.table == nullptr || ++state.row >= state.table->row_count();
             return true;
         }
     }
@@ -136,7 +137,7 @@ bool QueryVM::run_select_cycle()
         }
     }
 
-    state.finalised = state.table == nullptr ? true : ++state.row >= state.table->row_count();
+    state.finalised = state.table == nullptr || ++state.row >= state.table->row_count();
     return true;
 }
 
@@ -177,7 +178,6 @@ bool QueryVM::run_desc_cycle()
 
 bool QueryVM::fetch_row(row_t *row)
 {
-    row->clear();
     size_t before = stack.size();
     bool ret = run_cycle();
     size_t diff = stack.size() - before;
@@ -196,7 +196,7 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
 {
     size_t before = stack.size();
     size_t off = 0;
-    static void *dispatch_table[] = { &&do_exit, &&do_push_int64, &&do_push_string, &&do_mult, &&do_div, &&do_mod, &&do_sub, &&do_add, &&do_comp_ne, &&do_comp_eq, &&do_comp_gt, &&do_comp_lt, &&do_load_col, &&do_load_all, &&exec_sub_query, &&exec_frame_begin, &&exec_frame_end, &&exec_filter_mutual};
+    static void *dispatch_table[] = { &&do_exit, &&do_push_int64, &&do_push_string, &&do_mult, &&do_div, &&do_mod, &&do_sub, &&do_add, &&do_comp_ne, &&do_comp_eq, &&do_comp_gt, &&do_comp_lt, &&do_load_col, &&do_load_all, &&exec_sub_query, &&exec_frame_marker, &&exec_filter_mutual};
     DISPATCH();
     while(true)
     {
@@ -308,32 +308,20 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
             CONSUME_BYTES(2);
             DISPATCH();
         };
-        exec_frame_begin:
+        exec_frame_marker:
         {
             state.frames.emplace_back(stack.size());
             CONSUME_BYTES(1);
             DISPATCH();
         };
-        exec_frame_end:
-        {
-            CONSUME_BYTES(1);
-            DISPATCH();
-        };
         exec_filter_mutual:
         {
-            Variable needle;
-            std::vector<Variable> haystack;
-            size_t haystack_count = stack.size() - state.frames.back();
+            auto frame_pos = state.frames.back();
             state.frames.pop_back();
 
-            for(size_t a = 0; a < haystack_count; a++)
-            {
-                haystack.emplace_back(pop());
-            }
-
-            needle = pop();
-
-            push(std::find(haystack.begin(), haystack.end(), needle) != haystack.end());
+            bool match = std::find(stack.begin() + frame_pos, stack.end(), stack[frame_pos - 1]) != stack.end();
+            stack.erase(stack.begin() + frame_pos - 1, stack.end());
+            push(match);
 
             CONSUME_BYTES(1);
             DISPATCH();

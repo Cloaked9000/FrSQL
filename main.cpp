@@ -24,6 +24,16 @@ int main(int argc, char **argv)
 #endif
 
     Frsql frsql;
+
+//    auto begin = std::chrono::steady_clock::now();
+//    for(size_t a = 0; a < 9000000; a++)
+//    {
+//        frsql.exec("SELECT 10 IN (5, 7, 8, 10, 11, 15, 17)");
+//    }
+//    auto end = std::chrono::steady_clock::now();
+//    std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms" << std::endl;
+//    return 0;
+
     while(true)
     {
         std::string query;

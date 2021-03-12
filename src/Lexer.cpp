@@ -6,12 +6,8 @@
 #include <sys/stat.h>
 
 Lexer::Lexer()
-: line_number(0),
-  token_offset(0),
-  types{{"var",   Token::VAR},
-        {"if",    Token::IF},
-        {"while",  Token::WHILE},
-        {"else",  Token::ELSE},
+:  token_offset(0),
+  types{
         {"SELECT",  Token::SELECT},
         {"WHERE",  Token::WHERE},
         {"FROM", Token::FROM},
@@ -38,11 +34,6 @@ bool Lexer::lex(std::string_view data_)
     return true;
 }
 
-Lexer::Token Lexer::current()
-{
-    return current_token;
-}
-
 void Lexer::advance()
 {
     if(token_offset >= data.size())
@@ -56,7 +47,6 @@ void Lexer::advance()
         switch(data[token_offset])
         {
             case '\n':
-                ++line_number;
             case '\t':
             case ' ':
                 break;
@@ -72,26 +62,25 @@ void Lexer::advance()
                 current_token = Token(Token::SEMI_COLON, ";");
                 token_offset++;
                 return;
+            case '<':
+                current_token = Token(Token::ANGULAR_OPEN, "<");
+                token_offset++;
+                return;
+            case '>':
+                current_token = Token(Token::ANGULAR_CLOSE, ">");
+                token_offset++;
+                return;
             case ',':
                 current_token = Token(Token::COMMA, ",");
                 token_offset++;
                 return;
             case '=':
                 current_token = Token(Token::EQUALS, "=");
-                if(++token_offset < data.size() && data[token_offset] == '=')
-                {
-                    current_token = Token(Token::DOES_EQUAL, "=");
-                    token_offset++;
-                }
+                token_offset++;
                 return;
             case '+':
                 current_token = Token(Token::PLUS, "+");
                 token_offset++;
-                if(token_offset < data.size() && data[token_offset] == '+')
-                {
-                    token_offset++;
-                    current_token = Token(Token::PLUSPLUS, "++");
-                }
                 return;
             case '*':
                 current_token = Token(Token::ASTERISK, "*");
@@ -99,22 +88,6 @@ void Lexer::advance()
                 return;
             case '/':
                 current_token = Token(Token::FORWARDS_SLASH, "/");
-                token_offset++;
-                return;
-            case '{':
-                current_token = Token(Token::OPEN_BRACE, "{");
-                token_offset++;
-                return;
-            case '}':
-                current_token = Token(Token::CLOSE_BRACE, "}");
-                token_offset++;
-                return;
-            case '<':
-                current_token = Token(Token::ANGULAR_OPEN, "<");
-                token_offset++;
-                return;
-            case '>':
-                current_token = Token(Token::ANGULAR_CLOSE, ">");
                 token_offset++;
                 return;
             case '%':
@@ -142,18 +115,6 @@ void Lexer::advance()
                 token_offset++;
                 return;
             }
-            case '[':
-            {
-                current_token = Token(Token::OPEN_BRACKET, "[");
-                token_offset++;
-                return;
-            }
-            case ']':
-            {
-                current_token = Token(Token::CLOSE_BRACKET, "]");
-                token_offset++;
-                return;
-            }
             default:
                 if((data[token_offset] >= '0' && data[token_offset] <= '9') ||
                    data[token_offset] == '-') //If number, it's an INT type
@@ -169,10 +130,6 @@ void Lexer::advance()
                     if(current_token.data == "-")
                     {
                         current_token.type = Token::MINUS;
-                    }
-                    else if(current_token.data == "--")
-                    {
-                        current_token.type = Token::MINUSMINUS;
                     }
                 }
                 else //Else ID/TYPE/Variable
@@ -211,22 +168,4 @@ void Lexer::advance()
                 return;
         }
     }
-}
-
-bool Lexer::match(Lexer::Token::Type type)
-{
-    return current().type == type;
-}
-
-bool Lexer::legal_lookahead(Token::Type token)
-{
-    if(match(token))
-        return true;
-
-    throw SyntaxError("Unexpected token '" + current().str() + "'. Expected: '" + Token(token, "").str() + "'");
-}
-
-size_t Lexer::get_line_number() const
-{
-    return line_number;
 }

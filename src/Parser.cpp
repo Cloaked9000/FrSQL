@@ -21,7 +21,6 @@ void Parser::parse(Statement *stmt)
 
 void Parser::query(Statement *stmt)
 {
-    lexer->legal_lookahead(Lexer::Token::SELECT, Lexer::Token::INSERT, Lexer::Token::SHOW, Lexer::Token::DESC, Lexer::Token::CREATE, Lexer::Token::DELETE);
     switch(lexer->current().type)
     {
         case Lexer::Token::SELECT:
@@ -49,7 +48,8 @@ void Parser::query(Statement *stmt)
             delete_query(stmt);
             break;
         default:
-            throw SemanticError("Unknown query type '" + std::string(lexer->current().data) + "'");
+            //Print suitable error if unknown type
+            lexer->legal_lookahead(Lexer::Token::SELECT, Lexer::Token::INSERT, Lexer::Token::SHOW, Lexer::Token::DESC, Lexer::Token::CREATE, Lexer::Token::DELETE);
     }
 
     //Fill in referenced columns now the table name is known
@@ -224,10 +224,10 @@ void Parser::expr(Statement *stmt, std::string &output)
 
 void Parser::expr_(Statement *stmt, std::string &output)
 {
-    while(lexer->match(Lexer::Token::DOES_EQUAL, Lexer::Token::DOES_NOT_EQUAL))
+    while(lexer->match(Lexer::Token::EQUALS, Lexer::Token::DOES_NOT_EQUAL))
     {
 
-        if(lexer->match(Lexer::Token::DOES_EQUAL)) // ==
+        if(lexer->match(Lexer::Token::EQUALS)) // ==
         {
             lexer->advance();
             expr_l3(stmt, output);
@@ -251,7 +251,7 @@ void Parser::in(Statement *stmt, std::string &output)
         lexer->advance();
         lexer->legal_lookahead(Lexer::Token::OPEN_PARENTHESIS);
         lexer->advance();
-        output.append(sizeof(uint8_t), (char)Opcode::FRAME_BEGIN);
+        output.append(sizeof(uint8_t), (char)Opcode::FRAME_MARKER);
 
         if(lexer->match(Lexer::Token::SELECT))
         {
@@ -386,16 +386,12 @@ void Parser::factor(Statement *stmt, std::string &output)
 
 void Parser::type(Statement *stmt, std::string &output)
 {
-    if(!lexer->legal_lookahead(Lexer::Token::STRING, Lexer::Token::INT, Lexer::Token::ID, Lexer::Token::SELECT))
-    {
-        return;
-    }
-
     if(lexer->match(Lexer::Token::INT))
     {
-        output.append(sizeof(uint8_t), (char)Opcode::PUSH_INT64);
         int64_t num = 0;
-        std::from_chars(lexer->current().data.data(), lexer->current().data.data() + lexer->current().data.size(), num);
+        const std::string_view data = lexer->current().data;
+        std::from_chars(data.data(), data.data() + data.size(), num);
+        output.append(sizeof(uint8_t), (char)Opcode::PUSH_INT64);
         output.append(reinterpret_cast<char*>(&num), sizeof(int64_t));
         lexer->advance();
         return;
@@ -424,7 +420,11 @@ void Parser::type(Statement *stmt, std::string &output)
     {
         lexer->advance();
         subselect(stmt, output);
+        return;
     }
+
+    //Nothing matched, print suitable error
+    lexer->legal_lookahead(Lexer::Token::STRING, Lexer::Token::INT, Lexer::Token::ID, Lexer::Token::SELECT);
 }
 
 void Parser::subselect(Statement *stmt, std::string &output)

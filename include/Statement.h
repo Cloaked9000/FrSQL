@@ -15,6 +15,23 @@
 
 struct Statement
 {
+    void reset()
+    {
+        table_id = ID_NONE;
+        compiled_where_clause.clear();
+        compiled_limit_clause.clear();
+        compiled_result_clauses.clear();
+        strings.clear();
+        compiled_insert_values_clause.clear();
+        nested_statements.clear();
+        column_definitions.clear();
+        new_table_name.clear();
+        column_redirect.clear();
+        accessed_columns.clear();
+        evaluated_limit = 0;
+        rows_returned = 0;
+    }
+
     Lexer::Token::Type query_type;
     tid_t table_id = ID_NONE;
 

@@ -22,8 +22,7 @@ enum class Opcode : uint8_t
     LOAD_COL,
     LOAD_ALL,
     EXEC_SUBQUERY,
-    FRAME_BEGIN,
-    FRAME_END,
+    FRAME_MARKER,
     FILTER_MUTUAL,
 };
 

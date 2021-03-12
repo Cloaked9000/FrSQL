@@ -7,6 +7,7 @@
 #include <string_view>
 #include <array>
 #include <exceptions/SyntaxError.h>
+#include <span>
 
 class Lexer
 {
@@ -17,101 +18,75 @@ public:
     {
         enum Type
         {
-            OPEN_PARENTHESIS = 0,
-            CLOSE_PARENTHESIS = 1,
-            EOI = 2,
-            SEMI_COLON = 3,
-            ID = 4,
-            VAR = 5,
-            COMMA = 6,
-            INT = 7,
-            STRING = 8,
-            EQUALS = 9,
-            VARIABLE = 10,
-            PLUS = 11,
-            ASTERISK = 12,
-            FORWARDS_SLASH = 13,
-            MINUS = 14,
-            IF = 15,
-            OPEN_BRACE = 16,
-            CLOSE_BRACE = 17,
-            ELSE = 18,
-            WHILE = 19,
-            ANGULAR_OPEN = 20,
-            ANGULAR_CLOSE = 21,
-            MODULO = 22,
-            DOES_EQUAL = 23,
-            DOES_NOT_EQUAL = 24,
-            NOT = 25,
-            OPEN_BRACKET = 26,
-            CLOSE_BRACKET = 27,
-            ARRAY = 28,
-            PLUSPLUS = 29,
-            MINUSMINUS = 30,
-            SELECT = 31,
-            WHERE = 32,
-            FROM = 33,
-            LIMIT = 34,
-            INSERT = 35,
-            INTO = 36,
-            VALUES = 37,
-            SHOW = 38,
-            TABLES = 39,
-            DESC = 40,
-            CREATE = 41,
-            TABLE = 42,
-            DELETE = 43,
-            IN = 44,
-            TokenCount = 45, //Keep at end
+            SELECT = 0,
+            INSERT,
+            SHOW,
+            DESC,
+            CREATE,
+            DELETE,
+            OPEN_PARENTHESIS,
+            CLOSE_PARENTHESIS,
+            EOI,
+            SEMI_COLON,
+            ID,
+            COMMA,
+            INT,
+            STRING,
+            EQUALS,
+            PLUS,
+            ASTERISK,
+            FORWARDS_SLASH,
+            MINUS,
+            MODULO,
+            DOES_NOT_EQUAL,
+            NOT,
+            ANGULAR_OPEN,
+            ANGULAR_CLOSE,
+            WHERE,
+            FROM,
+            LIMIT,
+            INTO,
+            VALUES,
+            TABLES,
+            TABLE,
+            IN,
+            TokenCount, //Keep at end
         };
 
         [[nodiscard]] const std::string &str() const
         {
-            static std::array<std::string, 45> types = {
+            static std::array<std::string, 32> types = {
+                    "SELECT",
+                    "INSERT",
+                    "SHOW",
+                    "DESC",
+                    "CREATE",
+                    "DELETE",
                     "(",
                     ")",
                     "EOI",
                     ";",
                     "id",
-                    "var",
                     ",",
                     "int",
                     "string",
                     "=",
-                    "variable",
                     "+",
                     "*",
                     "/",
                     "-",
-                    "if",
-                    "{",
-                    "}",
-                    "else",
-                    "while",
-                    "<",
-                    ">",
                     "%",
-                    "=",
                     "!=",
                     "!",
-                    "[",
-                    "]",
-                    "array",
-                    "++",
-                    "--",
-                    "SELECT",
+                    "<",
+                    ">",
                     "WHERE",
                     "FROM",
                     "LIMIT",
-                    "INSERT",
                     "INTO",
                     "VALUES",
-                    "SHOW",
                     "TABLES",
-                    "DESC",
-                    "CREATE",
                     "TABLE",
-                    "DELETE",
                     "IN",
             };
             static_assert(std::tuple_size<decltype(types)>::value == Type::TokenCount, "types needs updating");
@@ -141,7 +116,10 @@ public:
      *
      * @return The current token
      */
-    Token current();
+    [[nodiscard]] const Token &current() const
+    {
+        return current_token;
+    }
 
     /*!
      * Advances to the next token
@@ -155,12 +133,15 @@ public:
      * @return True if the current token's type matches the provided type. False otherwise.
      */
     template<typename ...Args>
-    bool match(Token::Type type, Args ...types)
+    [[nodiscard]] inline bool match(Token::Type type, Args &&...types) const
     {
         return match(type) || match(types...);
     }
 
-    bool match(Token::Type type);
+    [[nodiscard]] inline bool match(Token::Type type) const
+    {
+        return current().type == type;
+    }
 
 
     /*!
@@ -169,8 +150,13 @@ public:
      * @param token The type to compare against
      * @return True if it matches, false otherwise.
      */
-    bool legal_lookahead(Token::Type token);
+    inline bool legal_lookahead(Token::Type token) const
+    {
+        if(match(token))
+            return true;
 
+        throw SyntaxError("Unexpected token '" + current().str() + "'. Expected: '" + Token(token, "").str() + "'");
+    }
     /*!
      * Checks to see if the current token matches any of the given arguments.
      *
@@ -179,7 +165,7 @@ public:
      * @return True if the current token matches, false otherwise
      */
     template<typename T, typename... Args>
-    bool legal_lookahead(T first, Args... args)
+    bool legal_lookahead(T first, Args&&... args) const
     {
         std::array<Token::Type, sizeof...(args)> param_list = {args...};
         bool is_error = true;
@@ -208,36 +194,9 @@ public:
         return !is_error;
     }
 
-    /*!
-     * Gets the current line number of the lexer
-     *
-     * @return The current line number
-     */
-    size_t get_line_number() const;
-
-    /*!
-     * Gets current token offset
-     *
-     * @return Current token offset
-     */
-    inline size_t get_token_offset() const
-    {
-        return token_offset;
-    }
-
-    /*!
-     * Sets the current token offset
-     *
-     * @param offset The new offset
-     */
-    inline void set_token_offset(size_t offset)
-    {
-        token_offset = offset;
-    }
-
 private:
+
     size_t token_offset;
-    size_t line_number;
     std::string_view data;
     Token current_token;
     std::unordered_map<std::string, Token::Type> types;

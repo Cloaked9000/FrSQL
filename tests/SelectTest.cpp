@@ -75,5 +75,21 @@ INSTANTIATE_TEST_SUITE_P(
 		Expected("SELECT \"bob\";", { {Variable("bob", 3)} }),
 		Expected("SELECT 10, 20;", { {Variable(10), Variable(20)} }),
 		Expected("SELECT 10, \"hey\", 25;", { {Variable(10), Variable("hey", 3), Variable(25)} }),
-		Expected("SELECT 10 * 20 * 3, 25 / 2, 5 + 5 * 2;", { {Variable(600), Variable(12), Variable(15)} })
+		Expected("SELECT 10 * 20 * 3, 25 / 2, 5 + 5 * 2;", { {Variable(600), Variable(12), Variable(15)} }),
+		Expected("SELECT 10 = 10;", { {Variable(1)} }),
+		Expected("SELECT 10 = 11;", { {Variable(0)} }),
+		Expected("SELECT 10 > 10;", { {Variable(0)} }),
+		Expected("SELECT 11 > 10;", { {Variable(1)} }),
+		Expected("SELECT 10 < 10;", { {Variable(0)} }),
+		Expected("SELECT 9 < 10;", { {Variable(1)} }),
+		Expected("SELECT 10 + 1 = 11;", { {Variable(1)} }),
+		Expected("SELECT 10 + 2 = 11;", { {Variable(0)} }),
+		Expected("SELECT 10 IN (10, 20, 15);", { {Variable(1)} }),
+		Expected("SELECT 10 IN (20, 10, 15);", { {Variable(1)} }),
+		Expected("SELECT 10 IN (20, 15, 10);", { {Variable(1)} }),
+		Expected("SELECT 10 IN (10);", { {Variable(1)} }),
+		Expected("SELECT 10 IN (11);", { {Variable(0)} }),
+		Expected("SELECT 10 IN (11, 15);", { {Variable(0)} }),
+		Expected("SELECT 1 IN (SELECT 5 in(10, 5));", { {Variable(1)} }),
+		Expected("SELECT 1 IN (SELECT 5 in(7, 5));", { {Variable(1)} })
 	));
