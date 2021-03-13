@@ -24,6 +24,7 @@ enum class Opcode : uint8_t
     EXEC_SUBQUERY,
     FRAME_MARKER,
     FILTER_MUTUAL,
+    FLIP,
 };
 
 #endif //TESTDB_OPCODE_H

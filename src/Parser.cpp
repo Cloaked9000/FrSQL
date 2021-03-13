@@ -214,15 +214,53 @@ void Parser::result_column(Statement *stmt)
     expr(stmt, stmt->compiled_result_clauses); //expr
 }
 
-
 void Parser::expr(Statement *stmt, std::string &output)
 {
     expr_l2(stmt, output);
     expr_(stmt, output);
-    in(stmt, output);
 }
 
 void Parser::expr_(Statement *stmt, std::string &output)
+{
+    bool should_invert = false;
+    if(lexer->match(Lexer::Token::NOT))
+    {
+        should_invert = true;
+        lexer->advance();
+        lexer->legal_lookahead(Lexer::Token::IN);
+    }
+
+    if(lexer->match(Lexer::Token::IN))
+    {
+        lexer->advance();
+        in(stmt, output);
+    }
+
+    if(should_invert)
+    {
+        output.append(sizeof(uint8_t), (char)Opcode::FLIP);
+    }
+}
+
+void Parser::expr_l2(Statement *stmt, std::string &output)
+{
+    bool should_invert = false;
+    if(lexer->match(Lexer::Token::NOT))
+    {
+        should_invert = true;
+        lexer->advance();
+    }
+
+    expr_l3(stmt, output);
+    expr_l2_(stmt, output);
+
+    if(should_invert)
+    {
+        output.append(sizeof(uint8_t), (char)Opcode::FLIP);
+    }
+}
+
+void Parser::expr_l2_(Statement *stmt, std::string &output)
 {
     while(lexer->match(Lexer::Token::EQUALS, Lexer::Token::DOES_NOT_EQUAL))
     {
@@ -230,14 +268,14 @@ void Parser::expr_(Statement *stmt, std::string &output)
         if(lexer->match(Lexer::Token::EQUALS)) // ==
         {
             lexer->advance();
-            expr_l3(stmt, output);
+            expr_l4(stmt, output);
             output.append(sizeof(uint8_t), (char)Opcode::COMP_EQ);
             continue;
         }
         if(lexer->match(Lexer::Token::DOES_NOT_EQUAL)) // !=
         {
             lexer->advance();
-            expr_l3(stmt, output);
+            expr_l4(stmt, output);
             output.append(sizeof(uint8_t), (char)Opcode::COMP_NE);
             continue;
         }
@@ -246,49 +284,45 @@ void Parser::expr_(Statement *stmt, std::string &output)
 
 void Parser::in(Statement *stmt, std::string &output)
 {
-    if(lexer->match(Lexer::Token::IN))
+    lexer->legal_lookahead(Lexer::Token::OPEN_PARENTHESIS);
+    lexer->advance();
+    output.append(sizeof(uint8_t), (char)Opcode::FRAME_MARKER);
+
+    if(lexer->match(Lexer::Token::SELECT))
     {
         lexer->advance();
-        lexer->legal_lookahead(Lexer::Token::OPEN_PARENTHESIS);
-        lexer->advance();
-        output.append(sizeof(uint8_t), (char)Opcode::FRAME_MARKER);
-
-        if(lexer->match(Lexer::Token::SELECT))
+        subselect(stmt, output);
+    }
+    else
+    {
+        expr(stmt, output);
+        while(lexer->match(Lexer::Token::COMMA))
         {
             lexer->advance();
-            subselect(stmt, output);
-        }
-        else
-        {
             expr(stmt, output);
-            while(lexer->match(Lexer::Token::COMMA))
-            {
-                lexer->advance();
-                expr(stmt, output);
-            }
         }
-
-        lexer->legal_lookahead(Lexer::Token::CLOSE_PARENTHESIS);
-        lexer->advance();
-
-        output.append(sizeof(uint8_t), (char)Opcode::FILTER_MUTUAL);
     }
+
+    lexer->legal_lookahead(Lexer::Token::CLOSE_PARENTHESIS);
+    lexer->advance();
+
+    output.append(sizeof(uint8_t), (char)Opcode::FILTER_MUTUAL);
 }
 
-void Parser::expr_l2(Statement *stmt, std::string &output)
+void Parser::expr_l3(Statement *stmt, std::string &output)
 {
-    expr_l3(stmt, output);
-    expr_l2_(stmt, output);
+    expr_l4(stmt, output);
+    expr_l3_(stmt, output);
 }
 
-void Parser::expr_l2_(Statement *stmt, std::string &output)
+void Parser::expr_l3_(Statement *stmt, std::string &output)
 {
     while(lexer->match(Lexer::Token::ANGULAR_OPEN, Lexer::Token::ANGULAR_CLOSE))
     {
         if(lexer->match(Lexer::Token::ANGULAR_OPEN)) // <
         {
             lexer->advance();
-            expr_l3(stmt, output);
+            expr_l4(stmt, output);
             output.append(sizeof(uint8_t), (char)Opcode::COMP_LT);
             continue;
         }
@@ -296,20 +330,20 @@ void Parser::expr_l2_(Statement *stmt, std::string &output)
         if(lexer->match(Lexer::Token::ANGULAR_CLOSE)) // >
         {
             lexer->advance();
-            expr_l3(stmt, output);
+            expr_l4(stmt, output);
             output.append(sizeof(uint8_t), (char)Opcode::COMP_GT);
             continue;
         }
     }
 }
 
-void Parser::expr_l3(Statement *stmt, std::string &output)
+void Parser::expr_l4(Statement *stmt, std::string &output)
 {
     term(stmt, output);
-    expr_l3_(stmt, output);
+    expr_l4_(stmt, output);
 }
 
-void Parser::expr_l3_(Statement *stmt, std::string &output)
+void Parser::expr_l4_(Statement *stmt, std::string &output)
 {
     while(lexer->match(Lexer::Token::PLUS, Lexer::Token::MINUS))
     {

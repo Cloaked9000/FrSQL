@@ -33,11 +33,25 @@ public:
         type = Type::INT;
     }
 
+    explicit Variable(std::string_view str)
+    {
+        store.str = str.data();
+        store.len = str.size();
+        type = Type::STRING;
+    }
+
     explicit Variable(const char *str, size_t len)
     {
         store.str = str;
         store.len = len;
         type = Type::STRING;
+    }
+
+    inline void invert()
+    {
+        if(type != Type::INT)
+            throw SemanticError("Can't invert non-integral value!");
+        store.int64 = !store.int64;
     }
 
     friend bool operator== (const Variable&, const Variable&) noexcept;

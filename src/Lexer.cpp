@@ -22,6 +22,7 @@ Lexer::Lexer()
         {"TABLE", Token::TABLE},
         {"DELETE", Token::DELETE},
         {"IN", Token::IN},
+        {"NOT", Token::NOT},
 }
 {
 }
@@ -93,14 +94,6 @@ void Lexer::advance()
             case '%':
                 current_token = Token(Token::MODULO, "%");
                 token_offset++;
-                return;
-            case '!':
-                current_token = Token(Token::NOT, "!");
-                if(++token_offset < data.size() && data[token_offset] == '=')
-                {
-                    current_token = Token(Token::DOES_NOT_EQUAL, "!=");
-                    token_offset++;
-                }
                 return;
             case '"':
             {

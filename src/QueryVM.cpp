@@ -196,7 +196,7 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
 {
     size_t before = stack.size();
     size_t off = 0;
-    static void *dispatch_table[] = { &&do_exit, &&do_push_int64, &&do_push_string, &&do_mult, &&do_div, &&do_mod, &&do_sub, &&do_add, &&do_comp_ne, &&do_comp_eq, &&do_comp_gt, &&do_comp_lt, &&do_load_col, &&do_load_all, &&exec_sub_query, &&exec_frame_marker, &&exec_filter_mutual};
+    static void *dispatch_table[] = { &&do_exit, &&do_push_int64, &&do_push_string, &&do_mult, &&do_div, &&do_mod, &&do_sub, &&do_add, &&do_comp_ne, &&do_comp_eq, &&do_comp_gt, &&do_comp_lt, &&do_load_col, &&do_load_all, &&exec_sub_query, &&exec_frame_marker, &&exec_filter_mutual, &&exec_flip};
     DISPATCH();
     while(true)
     {
@@ -323,6 +323,12 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
             stack.erase(stack.begin() + frame_pos - 1, stack.end());
             push(match);
 
+            CONSUME_BYTES(1);
+            DISPATCH();
+        };
+        exec_flip:
+        {
+            stack.back().invert();
             CONSUME_BYTES(1);
             DISPATCH();
         };
