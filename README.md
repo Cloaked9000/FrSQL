@@ -27,3 +27,6 @@ UPDATE user SET name = "Big Terry", age = age + 1 WHERE id = 3;
 DELETE FROM user WHERE id = 4;
 SELECT * FROM user;
 ```
+
+## Screenshot of said Queries:
+![alt text](https://raw.githubusercontent.com/Cloaked9000/FrSQL/main/screenshots/example1.png)
