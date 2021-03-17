@@ -39,6 +39,10 @@ int main(int argc, char **argv)
         std::string query;
         std::cout << "Query: ";
         std::getline(std::cin, query);
+        if(query.empty())
+        {
+            continue;
+        }
 
 #ifdef BUILD_TESTS
         if (query == "test")
@@ -66,7 +70,7 @@ int main(int argc, char **argv)
 
                 if (!row.empty())
                 {
-                    std::cout << "\n" << std::endl;
+                    std::cout << "\n";
                 }
                 });
         }

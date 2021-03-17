@@ -47,9 +47,13 @@ void Parser::query(Statement *stmt)
             lexer->advance();
             delete_query(stmt);
             break;
+        case Lexer::Token::UPDATE:
+            lexer->advance();
+            update_query(stmt);
+            break;
         default:
             //Print suitable error if unknown type
-            lexer->legal_lookahead(Lexer::Token::SELECT, Lexer::Token::INSERT, Lexer::Token::SHOW, Lexer::Token::DESC, Lexer::Token::CREATE, Lexer::Token::DELETE);
+            lexer->legal_lookahead(Lexer::Token::SELECT, Lexer::Token::INSERT, Lexer::Token::SHOW, Lexer::Token::DESC, Lexer::Token::CREATE, Lexer::Token::DELETE, Lexer::Token::UPDATE);
     }
 
     //Fill in referenced columns now the table name is known
@@ -91,12 +95,28 @@ void Parser::select_query(Statement *stmt)
 
 void Parser::insert_query(Statement *stmt)
 {
-    //Evaluate
+    //INSERT INTO x VALUES/SELECT
     stmt->query_type = Lexer::Token::INSERT;
     lexer->legal_lookahead(Lexer::Token::INTO);
     lexer->advance();
     table_name(stmt);
-    lexer->legal_lookahead(Lexer::Token::VALUES, Lexer::Token::SELECT);
+
+    //Support multiple inserts, (col1, col2, ...)
+    if(lexer->match(Lexer::Token::OPEN_PARENTHESIS))
+    {
+        lexer->advance();
+        column_name(stmt);
+        while(lexer->match(Lexer::Token::COMMA))
+        {
+            lexer->advance();
+            column_name(stmt);
+        }
+
+        lexer->legal_lookahead(Lexer::Token::CLOSE_PARENTHESIS);
+        lexer->advance();
+    }
+
+    //SELECT ...
     if(lexer->match(Lexer::Token::SELECT))
     {
         lexer->advance();
@@ -105,19 +125,74 @@ void Parser::insert_query(Statement *stmt)
         return;
     }
 
-    lexer->advance();
-    lexer->legal_lookahead(Lexer::Token::OPEN_PARENTHESIS);
+    //VALUES (..., ..., ...), ...
+    if(lexer->match(Lexer::Token::VALUES))
+    {
+        // todo validate number of values
+        do
+        {
+            lexer->advance();
+            lexer->legal_lookahead(Lexer::Token::OPEN_PARENTHESIS);
+            lexer->advance();
+
+            expr(stmt, stmt->compiled_insert_values_clause);
+            while(lexer->match(Lexer::Token::COMMA))
+            {
+                lexer->advance();
+                expr(stmt, stmt->compiled_insert_values_clause);
+            }
+
+            lexer->legal_lookahead(Lexer::Token::CLOSE_PARENTHESIS);
+            lexer->advance();
+        } while(lexer->match(Lexer::Token::COMMA));
+
+        cap_stmt(stmt->compiled_insert_values_clause);
+        return;
+    }
+
+    //If it was neither, print appropriate error
+    lexer->legal_lookahead(Lexer::Token::VALUES, Lexer::Token::SELECT);
+}
+
+void Parser::update_query(Statement *stmt)
+{
+    stmt->query_type = Lexer::Token::UPDATE;
+    table_name(stmt);
+    lexer->legal_lookahead(Lexer::Token::SET);
     lexer->advance();
 
-    expr(stmt, stmt->compiled_insert_values_clause);
+    column_name(stmt);
+    lexer->legal_lookahead(Lexer::Token::EQUALS);
+    lexer->advance();
+    expr(stmt, stmt->compiled_update_clause);
     while(lexer->match(Lexer::Token::COMMA))
     {
         lexer->advance();
-        expr(stmt, stmt->compiled_insert_values_clause);
+        column_name(stmt);
+        lexer->legal_lookahead(Lexer::Token::EQUALS);
+        lexer->advance();
+        expr(stmt, stmt->compiled_update_clause);
     }
-    cap_stmt(stmt->compiled_insert_values_clause);
+    cap_stmt(stmt->compiled_update_clause);
 
-    lexer->legal_lookahead(Lexer::Token::CLOSE_PARENTHESIS);
+    if(lexer->match(Lexer::Token::WHERE))
+    {
+        lexer->advance();
+        expr(stmt, stmt->compiled_where_clause);
+        cap_stmt(stmt->compiled_where_clause);
+    }
+}
+
+void Parser::column_name(Statement *stmt)
+{
+    lexer->legal_lookahead(Lexer::Token::ID);
+    auto table = database->load_table(stmt->table_id);
+    auto col_id = table->get_column_index(lexer->current().data);
+    if(!col_id)
+    {
+        throw SyntaxError("No such column '" + std::string(lexer->current().data) + "'!");
+    }
+    stmt->column_ids.emplace_back(*col_id);
     lexer->advance();
 }
 
@@ -126,6 +201,7 @@ void Parser::show_query(Statement *stmt)
     stmt->query_type = Lexer::Token::SHOW;
     lexer->legal_lookahead(Lexer::Token::TABLES);
     lexer->advance();
+
 }
 
 void Parser::desc_query(Statement *stmt)

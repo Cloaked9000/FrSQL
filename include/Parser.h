@@ -37,6 +37,7 @@ private:
     void query(Statement *stmt);
     void select_query(Statement *stmt);
     void insert_query(Statement *stmt);
+    void update_query(Statement *stmt);
     void show_query(Statement *stmt);
     void desc_query(Statement *stmt);
     void create_query(Statement *stmt);
@@ -44,6 +45,7 @@ private:
     void table_name(Statement *stmt);
     void result_column(Statement *stmt);
     void column_definition(Statement *stmt);
+    void column_name(Statement *stmt);
 
     void expr(Statement *stmt, std::string &output);
     void expr_(Statement *stmt, std::string &output);
@@ -59,7 +61,7 @@ private:
     void type(Statement *stmt, std::string &output);
     void factor(Statement *stmt, std::string &output);
     void subselect(Statement *stmt, std::string &output);
-    
+
     //State
 
 

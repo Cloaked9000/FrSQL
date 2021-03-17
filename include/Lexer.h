@@ -24,6 +24,7 @@ public:
             DESC,
             CREATE,
             DELETE,
+            UPDATE,
             OPEN_PARENTHESIS,
             CLOSE_PARENTHESIS,
             EOI,
@@ -50,18 +51,20 @@ public:
             TABLES,
             TABLE,
             IN,
+            SET,
             TokenCount, //Keep at end
         };
 
         [[nodiscard]] const std::string &str() const
         {
-            static std::array<std::string, 32> types = {
+            static std::array<std::string, 34> types = {
                     "SELECT",
                     "INSERT",
                     "SHOW",
                     "DESC",
                     "CREATE",
                     "DELETE",
+                    "UPDATE",
                     "(",
                     ")",
                     "EOI",
@@ -88,6 +91,7 @@ public:
                     "TABLES",
                     "TABLE",
                     "IN",
+                    "SET",
             };
             static_assert(std::tuple_size<decltype(types)>::value == Type::TokenCount, "types needs updating");
             return types[type];

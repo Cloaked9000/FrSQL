@@ -23,6 +23,8 @@ Lexer::Lexer()
         {"DELETE", Token::DELETE},
         {"IN", Token::IN},
         {"NOT", Token::NOT},
+        {"UPDATE", Token::UPDATE},
+        {"SET", Token::SET},
 }
 {
 }

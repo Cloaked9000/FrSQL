@@ -30,6 +30,8 @@ private:
     bool run_desc_cycle();
     bool run_create_cycle();
     bool run_delete_cycle();
+    bool run_update_cycle();
+
     size_t exec(Statement *stmt, std::string_view bytecode);
 
     template<typename ...Args>

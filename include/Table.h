@@ -14,13 +14,43 @@
 #include "Variable.h"
 #include "TableMetadata.h"
 
+// Note: this whole file is placeholder
 class Table
 {
 public:
     explicit Table(TableMetadata metadata)
-        : metadata(std::move(metadata))
+    : metadata(std::move(metadata))
     {
 
+    }
+
+    void set_col(size_t column_id, size_t row_id, const Variable &var)
+    {
+        Variable &old = cols.at(row_id).at(column_id);
+
+        if(old.type != var.type)
+        {
+            throw SemanticError("New column value is of different type to old!");
+        }
+
+        // If it's a string and we're overwriting it, update string store
+        if(old.type == Variable::Type::STRING)
+        {
+            auto iter = std::find_if(strings.begin(), strings.end(), [addr = old.store.str](const auto &str) {
+               return str.data() == addr;
+            });
+            if(iter == strings.end())
+            {
+                // String data is missing?!?
+                abort();
+            }
+
+            // Update to contain new string
+            *iter = std::string(var.store.str, var.store.len);
+        }
+
+        // Store new data
+        old = var;
     }
 
     [[nodiscard]] const Variable &load_col(size_t offset, size_t index) const

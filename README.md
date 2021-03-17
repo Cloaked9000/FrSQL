@@ -2,20 +2,28 @@
 An experimental - and very limited- SQL implementation for fun and experimentation, comprised of a lexer, parser, and virtual machine.
 
 ## (Somewhat) Supported Statement Types:
+* CREATE
+* UPDATE
+* DELETE
 * SELECT
 * INSERT
 * SHOW
 * DESC
-* CREATE
-* DELETE
 
 ## Supported Example Queries:
 ```sql
+CREATE TABLE admin(id INT, user_id INT);
+INSERT INTO admin (id, user_id) VALUES(1, 1), (1, 2);
+
+
 CREATE TABLE user(id INT, name STRING, age INT);
-INSERT INTO user VALUES(1, "Bob", 15);
-INSERT INTO user VALUES(2, "Andy", 16);
-SELECT (5 * 5), name FROM user WHERE age > (SELECT age FROM tab WHERE name = "Bob" LIMIT 1);
-SELECT name, age FROM user WHERE age IN(16, 17, 18);
-DELETE FROM user WHERE age % 2 = 0;
+INSERT INTO user VALUES(1, "James", 16);
+INSERT INTO user (id, name, age) VALUES (4, "Adam", 17), (3, "Terry", 20), (2, "Jessica", 21);
+
+SELECT * FROM user WHERE id IN (SELECT user_id FROM admin);
+SELECT name, age * 2 FROM user WHERE age % 2 = 0;
+
+UPDATE user SET name = "Big Terry", age = age + 1 WHERE id = 3;
+DELETE FROM user WHERE id = 4;
 SELECT * FROM user;
 ```

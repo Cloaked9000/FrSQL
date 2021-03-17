@@ -21,13 +21,15 @@ struct Statement
         compiled_where_clause.clear();
         compiled_limit_clause.clear();
         compiled_result_clauses.clear();
-        strings.clear();
         compiled_insert_values_clause.clear();
+        compiled_update_clause.clear();
+        strings.clear();
         nested_statements.clear();
         column_definitions.clear();
         new_table_name.clear();
         column_redirect.clear();
         accessed_columns.clear();
+        column_ids.clear();
         evaluated_limit = 0;
         rows_returned = 0;
     }
@@ -38,6 +40,9 @@ struct Statement
     std::string compiled_where_clause;
     std::string compiled_limit_clause;
     std::string compiled_result_clauses;
+    std::string compiled_update_clause;
+
+    std::vector<cid_t> column_ids;
 
     std::vector<std::string_view> strings;
     std::string compiled_insert_values_clause;
