@@ -46,7 +46,7 @@ void QueryVM::eval_stmt(Statement *stmt_)
     if (!state.stmt->compiled_limit_clause.empty())
     {
         exec(state.stmt, state.stmt->compiled_limit_clause);
-        Variable var = pop();
+        Variable var = stack.pop();
         if (var.type != Variable::Type::INT)
         {
             throw SemanticError("Limit must be integral");
@@ -94,7 +94,7 @@ bool QueryVM::run_update_cycle()
         if(!state.stmt->compiled_where_clause.empty())
         {
             exec(state.stmt, state.stmt->compiled_where_clause);
-            auto where_matched = pop(); //pop match result from stack
+            auto where_matched = stack.pop(); //pop match result from stack
             if(where_matched.store.int64 == 0)
             {
                 state.row++;
@@ -112,7 +112,7 @@ bool QueryVM::run_update_cycle()
         //Now update each column in the row. Do in reverse order due to stack ordering
         for(auto id = state.stmt->column_ids.rbegin(); id != state.stmt->column_ids.rend(); ++id)
         {
-            state.table->set_col(*id, state.row, pop());
+            state.table->set_col(*id, state.row, stack.pop());
         }
 
         state.row++;
@@ -139,7 +139,7 @@ bool QueryVM::run_delete_cycle()
     while (state.row < state.table->row_count())
     {
         exec(state.stmt, state.stmt->compiled_where_clause);
-        auto where_matched = pop();
+        auto where_matched = stack.pop();
         if (where_matched.store.int64 > 0)
         {
             state.table->delete_row(state.row);
@@ -162,7 +162,7 @@ bool QueryVM::run_select_cycle()
     if(!state.stmt->compiled_where_clause.empty())
     {
         exec(state.stmt, state.stmt->compiled_where_clause);
-        auto where_matched = pop(); //pop match result from stack
+        auto where_matched = stack.pop(); //pop match result from stack
         if(where_matched.store.int64 == 0)
         {
             state.finalised = state.table == nullptr || ++state.row >= state.table->row_count();
@@ -204,11 +204,11 @@ bool QueryVM::run_insert_cycle()
             // So rearrange the results to match the *actual* table order
             if(is_order_specified)
             {
-                ret[state.stmt->column_ids[a]] = pop();
+                ret[state.stmt->column_ids[a]] = stack.pop();
             }
             else
             {
-                ret[a] = pop();
+                ret[a] = stack.pop();
             }
         }
         value_count -= col_count;
@@ -225,7 +225,7 @@ bool QueryVM::run_show_cycle()
     {
         auto tab = database->load_table(id);
         const auto &meta = tab->get_metadata();
-        push(meta.name.data(), meta.name.size());
+        stack.push(meta.name.data(), meta.name.size());
     }
     return state.finalised = true;
 }
@@ -233,7 +233,7 @@ bool QueryVM::run_show_cycle()
 bool QueryVM::run_desc_cycle()
 {
     std::string_view name = state.table->get_column_name(state.row);
-    push(name.data(), name.size());
+    stack.push(name.data(), name.size());
     state.finalised = ++state.row >= state.table->get_column_count();
     return true;
 }
@@ -246,7 +246,7 @@ bool QueryVM::fetch_row(row_t *row)
     row->resize(diff);
     for(ssize_t b = 0; b < diff; b++)
     {
-        (*row)[row->size() - b - 1] = pop();
+        (*row)[row->size() - b - 1] = stack.pop();
     }
     return ret;
 }
@@ -268,7 +268,7 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
         }
         do_push_int64:
         {
-            push(*(int64_t*)&bytecode[off + 1]);
+            stack.push(*(int64_t*)&bytecode[off + 1]);
             CONSUME_BYTES(sizeof(uint64_t) + 1);
             DISPATCH();
         }
@@ -276,66 +276,66 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
         {
             const auto strings_off = (uint8_t)bytecode[off + 1];
             std::string_view str = state.stmt->strings[strings_off];
-            push(str.data(), str.size());
+            stack.push(str.data(), str.size());
             CONSUME_BYTES(2);
             DISPATCH();
         }
         do_mult:
         {
-            push(pop() * pop());
+            stack.push(stack.pop() * stack.pop());
             CONSUME_BYTES(1);
             DISPATCH();
         }
         do_div:
         {
-            auto s1 = pop(), s2 = pop();
-            push(s2 / s1);
+            auto s1 = stack.pop(), s2 = stack.pop();
+            stack.push(s2 / s1);
             CONSUME_BYTES(1);
             DISPATCH();
         }
         do_mod:
         {
-            auto s1 = pop(), s2 = pop();
-            push(s2 % s1);
+            auto s1 = stack.pop(), s2 = stack.pop();
+            stack.push(s2 % s1);
             CONSUME_BYTES(1);
             DISPATCH();
         }
         do_sub:
         {
-            auto s1 = pop(), s2 = pop();
-            push(s2 - s1);
+            auto s1 = stack.pop(), s2 = stack.pop();
+            stack.push(s2 - s1);
             CONSUME_BYTES(1);
             DISPATCH();
         }
         do_add:
         {
-            push(pop() + pop());
+            stack.push(stack.pop() + stack.pop());
             CONSUME_BYTES(1);
             DISPATCH();
         }
         do_comp_ne:
         {
-            push(pop() != pop());
+            stack.push(stack.pop() != stack.pop());
             CONSUME_BYTES(1);
             DISPATCH();
         }
         do_comp_eq:
         {
-            push(pop() == pop());
+            stack.push(stack.pop() == stack.pop());
             CONSUME_BYTES(1);
             DISPATCH();
         }
         do_comp_gt:
         {
-            auto s1 = pop(), s2 = pop();
-            push(s2 > s1);
+            auto s1 = stack.pop(), s2 = stack.pop();
+            stack.push(s2 > s1);
             CONSUME_BYTES(1);
             DISPATCH();
         }
         do_comp_lt:
         {
-            auto s1 = pop(), s2 = pop();
-            push(s2 < s1);
+            auto s1 = stack.pop(), s2 = stack.pop();
+            stack.push(s2 < s1);
             CONSUME_BYTES(1);
             DISPATCH();
         }
@@ -344,7 +344,7 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
             const auto col_index = (uint8_t)bytecode[off + 1];
             const auto col_id = stmt->column_redirect.at(col_index);
             const auto &col = state.table->load_col(state.row, col_id);
-            push(col);
+            stack.push(col);
             CONSUME_BYTES(2);
             DISPATCH();
         }
@@ -353,7 +353,7 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
             const auto &col = state.table->load_row(state.row);
             for(const auto &c : col)
             {
-                push(c);
+                stack.push(c);
             }
             CONSUME_BYTES(1);
             DISPATCH();
@@ -378,19 +378,22 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
         };
         exec_filter_mutual:
         {
+            //Stack back to front: needle (frame pos) -> (content, content, ...)
+            //So search haystack (frame to top of stack), for needle (where frame points to)
+
             auto frame_pos = state.frames.back();
             state.frames.pop_back();
 
             bool match = std::find(stack.begin() + frame_pos, stack.end(), stack[frame_pos - 1]) != stack.end();
-            stack.erase(stack.begin() + frame_pos - 1, stack.end());
-            push(match);
+            stack.pop(stack.size() - frame_pos + 1);
+            stack.push(match);
 
             CONSUME_BYTES(1);
             DISPATCH();
         };
         exec_flip:
         {
-            stack.back().invert();
+            stack.top().invert();
             CONSUME_BYTES(1);
             DISPATCH();
         };

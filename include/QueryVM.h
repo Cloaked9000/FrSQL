@@ -9,6 +9,7 @@
 #include <vector>
 #include <memory>
 #include "Variable.h"
+#include "Stack.h"
 
 class Table;
 class Statement;
@@ -17,7 +18,7 @@ typedef std::vector<Variable> row_t;
 class QueryVM
 {
 public:
-    QueryVM(std::shared_ptr<Database> database);
+    explicit QueryVM(std::shared_ptr<Database> database);
     bool fetch_row(row_t *row);
     void eval_stmt(Statement *stmt);
     void reset();
@@ -33,21 +34,6 @@ private:
     bool run_update_cycle();
 
     size_t exec(Statement *stmt, std::string_view bytecode);
-
-    template<typename ...Args>
-    inline void push(Args &&...args)
-    {
-        stack.emplace_back(std::forward<Args>(args)...);
-    }
-
-    inline Variable pop()
-    {
-        if(stack.empty())
-            throw SemanticError("Stack empty!");
-        Variable var = stack.back();
-        stack.pop_back();
-        return var;
-    }
 
     inline void push_state()
     {
@@ -86,8 +72,8 @@ private:
 
     // State
     State state;
-    std::vector<Variable> stack;
     std::vector<State> state_stack;
+    Stack<Variable> stack;
 
     // Dependencies
     std::shared_ptr<Database> database;

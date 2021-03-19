@@ -15,12 +15,12 @@ set(SOURCE_FILES
         include/Parser.h
         include/Lexer.h
         include/exceptions/SyntaxError.h
-        include/exceptions/SemanticError.h include/Statement.h src/QueryVM.cpp include/QueryVM.h include/Opcode.h src/Table.cpp include/Table.h include/Database.h src/Database.cpp "include/frsql.h" "include/exceptions/DatabaseError.h")
+        include/exceptions/SemanticError.h include/Statement.h src/QueryVM.cpp include/QueryVM.h include/Opcode.h src/Table.cpp include/Table.h include/Database.h src/Database.cpp "include/frsql.h" "include/exceptions/DatabaseError.h" src/Stack.cpp include/Stack.h)
 
  
 if(BUILD_TESTS)
     add_definitions(-DBUILD_TESTS)
-    set(SOURCE_FILES ${SOURCE_FILES} tests/SelectTest.cpp)
+    set(SOURCE_FILES ${SOURCE_FILES} tests/SelectTest.cpp tests/StackTest.cpp tests/TestUtils.h)
 
     configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
     execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" . RESULT_VARIABLE result WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
