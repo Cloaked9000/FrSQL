@@ -52,12 +52,15 @@ public:
             TABLE,
             IN,
             SET,
+            ORDER,
+            BY,
+            ASC,
             TokenCount, //Keep at end
         };
 
         [[nodiscard]] const std::string &str() const
         {
-            static std::array<std::string, 34> types = {
+            static std::array<std::string, 37> types = {
                     "SELECT",
                     "INSERT",
                     "SHOW",
@@ -92,6 +95,9 @@ public:
                     "TABLE",
                     "IN",
                     "SET",
+                    "ORDER",
+                    "BY",
+                    "ASC",
             };
             static_assert(std::tuple_size<decltype(types)>::value == Type::TokenCount, "types needs updating");
             return types[type];

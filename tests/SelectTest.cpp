@@ -22,13 +22,26 @@ struct Expected
 	std::vector<row_t> expected;
 };
 
-class QueryTextFixture :public ::testing::TestWithParam<Expected> 
+inline void PrintTo(const Expected &expected, ::std::ostream* os)
 {
+    *os << expected.query;
+}
+
+class SelectTest :public ::testing::TestWithParam<Expected>
+{
+public:
+    SelectTest()
+    {
+        sql.exec("CREATE TABLE user (id INT, name STRING, age INT);");
+        sql.exec("CREATE TABLE admin (id INT, user_id INT);");
+        sql.exec(R"(INSERT INTO user (id, name, age) VALUES (1, "Garry", 10), (2, "Barry", 15), (3, "Larry", 5);)");
+        sql.exec(R"(INSERT INTO admin (id, user_id) VALUES(1, 2), (1, 3);)");
+    }
 protected:
 	Frsql sql;
 };
 
-TEST_P(QueryTextFixture, test_select) {
+TEST_P(SelectTest, test_select) {
 	Expected query = GetParam();
 	ValStore val;
 	sql.exec(query.query, [&](const row_t& args){val.callback(args);});
@@ -37,7 +50,7 @@ TEST_P(QueryTextFixture, test_select) {
 
 INSTANTIATE_TEST_SUITE_P(
 	SelectIntermediate,
-	QueryTextFixture,
+	SelectTest,
 	::testing::Values(
 		Expected("SELECT 10;", { {Variable(10)} }),
 		Expected("SELECT -10;", { {Variable(-10)} }),
@@ -56,7 +69,13 @@ INSTANTIATE_TEST_SUITE_P(
 		Expected("SELECT NOT 10;", { {Variable(0)} }),
 		Expected("SELECT NOT 0;", { {Variable(1)} }),
 		Expected("SELECT NOT 10 = 10;", { {Variable(0)} }),
-		Expected("SELECT NOT 10 = 11;", { {Variable(1)} }),
+		Expected("SELECT NOT 10 = 11;", { {Variable(1)} })
+    ));
+
+INSTANTIATE_TEST_SUITE_P(
+        SelectIN,
+        SelectTest,
+        ::testing::Values(
 		Expected("SELECT 10 IN (10, 20, 15);", { {Variable(1)} }),
 		Expected("SELECT 10 IN (20, 10, 15);", { {Variable(1)} }),
 		Expected("SELECT 10 IN (20, 15, 10);", { {Variable(1)} }),
@@ -76,3 +95,22 @@ INSTANTIATE_TEST_SUITE_P(
 		Expected("SELECT 50 NOT IN (70, 50, 100)", { {Variable(0)} }),
 		Expected("SELECT 50 NOT IN (70, 60, 100);", { {Variable(1)} })
 	));
+
+INSTANTIATE_TEST_SUITE_P(
+        SelectFromTable,
+        SelectTest,
+        ::testing::Values(
+                Expected("SELECT id FROM user;", { {Variable(3) }, {Variable(2)}, {Variable(1)} }),
+                Expected("SELECT id, name FROM user;", { {Variable(3), Variable("Larry") }, {Variable(2), Variable("Barry")}, {Variable(1), Variable("Garry")} }),
+                Expected("SELECT name FROM user WHERE id IN (SELECT user_id FROM admin);", { {Variable("Larry")}, {Variable("Barry")} }),
+                Expected("SELECT id + 1 FROM user LIMIT 1;", { {Variable(4)} })
+    ));
+
+INSTANTIATE_TEST_SUITE_P(
+        SelectLIMIT,
+        SelectTest,
+        ::testing::Values(
+                Expected("SELECT id FROM user LIMIT 200;", { {Variable(3)}, {Variable(2)}, {Variable(1)} }),
+                Expected("SELECT id FROM user LIMIT 1;", { {Variable(3)} }),
+                Expected("SELECT id FROM user LIMIT 0;", {})
+        ));

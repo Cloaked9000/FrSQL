@@ -85,6 +85,18 @@ void Parser::select_query(Statement *stmt)
         cap_stmt(stmt->compiled_where_clause);
     }
 
+    if(lexer->match(Lexer::Token::ORDER))
+    {
+        lexer->advance();
+        lexer->legal_lookahead(Lexer::Token::BY);
+
+        do
+        {
+            lexer->advance(); //skips over both BY *or* commas if looped
+            ordering_term(stmt);
+        } while(lexer->match(Lexer::Token::COMMA));
+    }
+
     if(lexer->match(Lexer::Token::LIMIT))
     {
         lexer->advance();
@@ -194,6 +206,23 @@ void Parser::column_name(Statement *stmt)
     }
     stmt->column_ids.emplace_back(*col_id);
     lexer->advance();
+}
+
+void Parser::ordering_term(Statement *stmt)
+{
+    //note: Default order value is ascending (already set)
+    expr(stmt, stmt->compiled_ordering_clause);
+    cap_stmt(stmt->compiled_ordering_clause);
+    if(lexer->match(Lexer::Token::ASC))
+    {
+        lexer->advance();
+    }
+
+    if(lexer->match(Lexer::Token::DESC))
+    {
+        lexer->advance();
+        stmt->order = Statement::Order::Descending;
+    }
 }
 
 void Parser::show_query(Statement *stmt)

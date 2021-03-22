@@ -61,12 +61,14 @@ private:
             stmt = nullptr;
             table = nullptr;
             row = 0;
+            max_rows = 1;
         }
 
         bool finalised;
         Statement *stmt;
         std::shared_ptr<Table> table;
         size_t row;
+        size_t max_rows;
         std::vector<size_t> frames;
     };
 

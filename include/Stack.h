@@ -21,7 +21,7 @@ public:
         return *this;
     }
 
-    inline Type pop()
+    [[nodiscard]] inline Type pop()
     {
         assert(!stack.empty());
         Type var = std::move(stack.back());
@@ -40,7 +40,7 @@ public:
         return stack.size();
     }
 
-    inline Type &top()
+    [[nodiscard]] inline Type &top()
     {
         assert(!stack.empty());
         return stack.back();

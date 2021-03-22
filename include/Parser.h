@@ -46,6 +46,7 @@ private:
     void result_column(Statement *stmt);
     void column_definition(Statement *stmt);
     void column_name(Statement *stmt);
+    void ordering_term(Statement *stmt);
 
     void expr(Statement *stmt, std::string &output);
     void expr_(Statement *stmt, std::string &output);

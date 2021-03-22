@@ -25,6 +25,9 @@ Lexer::Lexer()
         {"NOT", Token::NOT},
         {"UPDATE", Token::UPDATE},
         {"SET", Token::SET},
+        {"ORDER", Token::ORDER},
+        {"BY", Token::BY},
+        {"ASC", Token::ASC},
 }
 {
 }

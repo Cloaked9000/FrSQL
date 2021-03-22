@@ -40,6 +40,7 @@ void QueryVM::eval_stmt(Statement *stmt_)
     if (state.stmt->table_id != ID_NONE)
     {
         state.table = database->load_table(state.stmt->table_id);
+        state.max_rows = state.table->row_count();
     }
 
     //Evaluate any LIMIT clauses
@@ -51,7 +52,22 @@ void QueryVM::eval_stmt(Statement *stmt_)
         {
             throw SemanticError("Limit must be integral");
         }
-        state.stmt->evaluated_limit = var.store.int64;
+        state.max_rows = std::min((size_t)var.store.int64, state.max_rows);
+        if(state.max_rows == 0)
+        {
+            state.finalised = true;
+        }
+    }
+
+    //Evaluate any ORDER clauses
+    if (!state.stmt->compiled_ordering_clause.empty())
+    {
+        exec(state.stmt, state.stmt->compiled_ordering_clause);
+        Variable var = stack.pop();
+        if (var.type == Variable::Type::INT)
+        {
+            state.table->set_sort(var.store.int64);
+        }
     }
 }
 
@@ -159,28 +175,29 @@ bool QueryVM::run_create_cycle()
 
 bool QueryVM::run_select_cycle()
 {
+    //Figure out how many
+    bool match = true;
     if(!state.stmt->compiled_where_clause.empty())
     {
-        exec(state.stmt, state.stmt->compiled_where_clause);
-        auto where_matched = stack.pop(); //pop match result from stack
-        if(where_matched.store.int64 == 0)
+        match = false;
+        for(; state.row < state.max_rows; state.row++)
         {
-            state.finalised = state.table == nullptr || ++state.row >= state.table->row_count();
-            return true;
+            exec(state.stmt, state.stmt->compiled_where_clause);
+            if(stack.pop().store.int64)
+            {
+                match = true;
+                break;
+            }
         }
     }
 
-    if(!state.stmt->compiled_result_clauses.empty())
+    if(match && !state.stmt->compiled_result_clauses.empty())
     {
         state.stmt->rows_returned += exec(state.stmt, state.stmt->compiled_result_clauses);
-        if(!state.stmt->compiled_limit_clause.empty() && state.stmt->rows_returned > state.stmt->evaluated_limit)
-        {
-            return state.finalised = true;
-        }
     }
 
-    state.finalised = state.table == nullptr || ++state.row >= state.table->row_count();
-    return true;
+    state.finalised = ++state.row >= state.max_rows;
+    return match;
 }
 
 bool QueryVM::run_insert_cycle()

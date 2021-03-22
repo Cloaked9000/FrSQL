@@ -15,6 +15,12 @@
 
 struct Statement
 {
+    enum class Order
+    {
+        Ascending = 0,
+        Descending
+    };
+
     void reset()
     {
         table_id = ID_NONE;
@@ -23,6 +29,7 @@ struct Statement
         compiled_result_clauses.clear();
         compiled_insert_values_clause.clear();
         compiled_update_clause.clear();
+        compiled_ordering_clause.clear();
         strings.clear();
         nested_statements.clear();
         column_definitions.clear();
@@ -30,8 +37,8 @@ struct Statement
         column_redirect.clear();
         accessed_columns.clear();
         column_ids.clear();
-        evaluated_limit = 0;
         rows_returned = 0;
+        order = Order::Ascending;
     }
 
     Lexer::Token::Type query_type;
@@ -41,6 +48,7 @@ struct Statement
     std::string compiled_limit_clause;
     std::string compiled_result_clauses;
     std::string compiled_update_clause;
+    std::string compiled_ordering_clause;
 
     std::vector<cid_t> column_ids;
 
@@ -54,8 +62,8 @@ struct Statement
     std::vector<size_t> column_redirect;
     std::vector<std::string> accessed_columns;
 
-    size_t evaluated_limit;
     size_t rows_returned;
+    Order order;
 };
 
 

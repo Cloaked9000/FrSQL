@@ -123,6 +123,12 @@ public:
         }
     }
 
+    void set_sort(cid_t column_id)
+    {
+        std::sort(cols.begin(), cols.end(), [column_id](auto &val1, auto &val2) {
+            return (val1[column_id] < val2[column_id]).store.int64;
+        });
+    }
 private:
     TableMetadata metadata;
     std::vector<std::vector<Variable>> cols;
