@@ -7,7 +7,6 @@
 #include <string_view>
 #include <array>
 #include <exceptions/SyntaxError.h>
-#include <span>
 
 class Lexer
 {

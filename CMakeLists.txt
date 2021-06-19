@@ -37,6 +37,9 @@ if(BUILD_TESTS)
 endif()
 
 add_executable(TestDB ${SOURCE_FILES})
+if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" AND "x${CMAKE_CXX_SIMULATE_ID}" STREQUAL "xMSVC")
+    target_compile_options(TestDB PRIVATE /EHa)
+endif()
 
 if(BUILD_TESTS)
     target_link_libraries(TestDB gtest_main)
