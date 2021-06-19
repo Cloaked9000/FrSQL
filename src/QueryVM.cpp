@@ -175,7 +175,9 @@ bool QueryVM::run_create_cycle()
 
 bool QueryVM::run_select_cycle()
 {
-    //Figure out how many
+
+
+    //If there's a WHERE clause, keep iterating until we find a match
     bool match = true;
     if(!state.stmt->compiled_where_clause.empty())
     {
@@ -359,8 +361,7 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
         do_load_col:
         {
             const auto col_index = (uint8_t)bytecode[off + 1];
-            const auto col_id = stmt->column_redirect.at(col_index);
-            const auto &col = state.table->load_col(state.row, col_id);
+            const auto &col = state.table->load_col(state.row, col_index);
             stack.push(col);
             CONSUME_BYTES(2);
             DISPATCH();

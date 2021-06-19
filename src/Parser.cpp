@@ -57,7 +57,7 @@ void Parser::query(Statement *stmt)
     }
 
     //Fill in referenced columns now the table name is known
-    resolve_table_references(stmt);
+    link_stmt(stmt);
 }
 
 void Parser::select_query(Statement *stmt)
@@ -74,8 +74,11 @@ void Parser::select_query(Statement *stmt)
 
     if(lexer->match(Lexer::Token::FROM))
     {
-        lexer->advance();
-        table_name(stmt);
+        do
+        {
+            lexer->advance();
+            table_or_subquery(stmt);
+        } while(lexer->match(Lexer::Token::COMMA));
     }
 
     if(lexer->match(Lexer::Token::WHERE))
@@ -305,6 +308,26 @@ void Parser::table_name(Statement *stmt)
     lexer->legal_lookahead(Lexer::Token::ID);
     stmt->table_id = database->lookup_table(lexer->current().data);
     lexer->advance();
+}
+
+void Parser::table_or_subquery(Statement *stmt)
+{
+    if(lexer->match(Lexer::Token::ID)) //is table
+    {
+        table_name(stmt);
+        return;
+    }
+
+    if(lexer->match(Lexer::Token::OPEN_PARENTHESIS)) //is subquery
+    {
+        lexer->advance();
+        subselect(stmt, stmt->compiled_from_clause);
+        lexer->legal_lookahead(Lexer::Token::CLOSE_PARENTHESIS);
+        lexer->advance();
+        return;
+    }
+
+    lexer->legal_lookahead(Lexer::Token::ID, Lexer::Token::OPEN_PARENTHESIS);
 }
 
 void Parser::result_column(Statement *stmt)
@@ -548,9 +571,8 @@ void Parser::type(Statement *stmt, std::string &output)
     if(lexer->match(Lexer::Token::ID))
     {
         output.append(sizeof(uint8_t), (char)Opcode::LOAD_COL);
-        output.append(sizeof(uint8_t), (char)stmt->column_redirect.size());
-        stmt->accessed_columns.emplace_back(lexer->current().data);
-        stmt->column_redirect.emplace_back(std::numeric_limits<size_t>::max());
+        output.append(sizeof(uint8_t), '\0'); //placeholder to be linked
+        stmt->accessed_columns.emplace_back(Statement::Link((uint8_t*)&output.back(), lexer->current().data));
         lexer->advance();
         return;
     }
@@ -573,7 +595,7 @@ void Parser::subselect(Statement *stmt, std::string &output)
     stmt->nested_statements.emplace_back();
     Statement *nested = &stmt->nested_statements.back();
     select_query(nested);
-    resolve_table_references(nested);
+    link_stmt(nested);
 }
 
 void Parser::cap_stmt(std::string &stmt)
@@ -583,7 +605,7 @@ void Parser::cap_stmt(std::string &stmt)
     stmt.append(sizeof(uint8_t), (uint8_t)Opcode::QUIT);
 }
 
-void Parser::resolve_table_references(Statement *stmt)
+void Parser::link_stmt(Statement *stmt)
 {
     if (stmt->table_id == ID_NONE)
     {
@@ -593,12 +615,13 @@ void Parser::resolve_table_references(Statement *stmt)
     for (size_t a = 0; a < stmt->accessed_columns.size(); a++)
     {
         auto table = database->load_table(stmt->table_id);
-        auto index = table->get_column_index(stmt->accessed_columns[a]);
+        auto index = table->get_column_index(stmt->accessed_columns[a].column_name);
         if (!index)
         {
-            throw SemanticError("No such column '" + stmt->accessed_columns[a] + "'");
+            throw SemanticError("No such column '" + std::string(stmt->accessed_columns[a].column_name) + "'");
         }
 
-        stmt->column_redirect[a] = *index;
+        assert(*index <= std::numeric_limits<uint8_t>::max()); //todo: increase max size
+        *stmt->accessed_columns[a].bytecode_pos = *index;
     }
 }

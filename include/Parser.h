@@ -43,6 +43,7 @@ private:
     void create_query(Statement *stmt);
     void delete_query(Statement *stmt);
     void table_name(Statement *stmt);
+    void table_or_subquery(Statement *stmt);
     void result_column(Statement *stmt);
     void column_definition(Statement *stmt);
     void column_name(Statement *stmt);
@@ -68,7 +69,7 @@ private:
 
     //Misc
     void cap_stmt(std::string &stmt);
-    void resolve_table_references(Statement *stmt);
+    void link_stmt(Statement *stmt);
 
     //Dependencies
     std::shared_ptr<Database> database;

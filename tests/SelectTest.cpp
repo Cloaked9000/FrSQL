@@ -69,7 +69,8 @@ INSTANTIATE_TEST_SUITE_P(
 		Expected("SELECT NOT 10;", { {Variable(0)} }),
 		Expected("SELECT NOT 0;", { {Variable(1)} }),
 		Expected("SELECT NOT 10 = 10;", { {Variable(0)} }),
-		Expected("SELECT NOT 10 = 11;", { {Variable(1)} })
+		Expected("SELECT NOT 10 = 11;", { {Variable(1)} }),
+		Expected("SELECT * FROM (SELECT 10, 20);", { {Variable(10), Variable(20)} })
     ));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -103,6 +104,7 @@ INSTANTIATE_TEST_SUITE_P(
                 Expected("SELECT id FROM user;", { {Variable(3) }, {Variable(2)}, {Variable(1)} }),
                 Expected("SELECT id, name FROM user;", { {Variable(3), Variable("Larry") }, {Variable(2), Variable("Barry")}, {Variable(1), Variable("Garry")} }),
                 Expected("SELECT name FROM user WHERE id IN (SELECT user_id FROM admin);", { {Variable("Larry")}, {Variable("Barry")} }),
+                Expected("SELECT * FROM user LIMIT 1;", { {Variable(3), Variable("Larry"), Variable(5)} }),
                 Expected("SELECT id + 1 FROM user LIMIT 1;", { {Variable(4)} })
     ));
 
@@ -113,4 +115,11 @@ INSTANTIATE_TEST_SUITE_P(
                 Expected("SELECT id FROM user LIMIT 200;", { {Variable(3)}, {Variable(2)}, {Variable(1)} }),
                 Expected("SELECT id FROM user LIMIT 1;", { {Variable(3)} }),
                 Expected("SELECT id FROM user LIMIT 0;", {})
+        ));
+
+INSTANTIATE_TEST_SUITE_P(
+        SelectOrdered,
+        SelectTest,
+        ::testing::Values(
+
         ));

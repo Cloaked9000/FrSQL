@@ -15,6 +15,17 @@
 
 struct Statement
 {
+    struct Link
+    {
+        Link(uint8_t *bytecode_pos, std::string_view column_name)
+        : bytecode_pos(bytecode_pos),
+          column_name(column_name)
+        {}
+
+        uint8_t *bytecode_pos;
+        std::string_view column_name;
+    };
+
     enum class Order
     {
         Ascending = 0,
@@ -30,13 +41,13 @@ struct Statement
         compiled_insert_values_clause.clear();
         compiled_update_clause.clear();
         compiled_ordering_clause.clear();
+        compiled_from_clause.clear();
         strings.clear();
         nested_statements.clear();
         column_definitions.clear();
         new_table_name.clear();
-        column_redirect.clear();
-        accessed_columns.clear();
         column_ids.clear();
+        accessed_columns.clear();
         rows_returned = 0;
         order = Order::Ascending;
     }
@@ -44,6 +55,7 @@ struct Statement
     Lexer::Token::Type query_type;
     tid_t table_id = ID_NONE;
 
+    std::string compiled_from_clause;
     std::string compiled_where_clause;
     std::string compiled_limit_clause;
     std::string compiled_result_clauses;
@@ -59,8 +71,7 @@ struct Statement
     std::vector<ColumnMetadata> column_definitions;
     std::string new_table_name;
 
-    std::vector<size_t> column_redirect;
-    std::vector<std::string> accessed_columns;
+    std::vector<Link> accessed_columns;
 
     size_t rows_returned;
     Order order;
