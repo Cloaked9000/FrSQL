@@ -1,12 +1,12 @@
 # FrSQL
-An experimental - and very limited- SQL implementation for fun and experimentation, comprised of a lexer, parser, and virtual machine.
+An experimental - and very limited - SQL implementation for fun and experimentation, comprised of a lexer, parser, and virtual machine.
 
-## (Somewhat) Supported Statement Types:
-* CREATE
-* UPDATE
-* DELETE
-* SELECT
-* INSERT
+## Supported Features:
+* UPDATE, DELETE, SELECT, INSERT
+* CREATE/DELETE TABLE
+* SUBQUERIES
+* LIMIT
+* (NOT) IN
 * SHOW
 * DESC
 
@@ -28,5 +28,5 @@ DELETE FROM user WHERE id = 4;
 SELECT * FROM user;
 ```
 
-## Screenshot of said Queries:
+## Screenshots:
 ![alt text](https://raw.githubusercontent.com/Cloaked9000/FrSQL/main/screenshots/example1.png)
