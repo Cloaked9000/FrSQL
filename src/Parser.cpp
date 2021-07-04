@@ -1,5 +1,6 @@
 #include <iostream>
 #include <functional>
+#include <algorithm>
 #include <Parser.h>
 #include <exceptions/SemanticError.h>
 #include <Opcode.h>
@@ -202,12 +203,12 @@ void Parser::column_name(Statement *stmt)
 {
     lexer->legal_lookahead(Lexer::Token::ID);
     auto table = database->load_table(stmt->table_id);
-    auto col_id = table->get_column_index(lexer->current().data);
-    if(!col_id)
+    auto col_id = table->get_metadata().get_column_index(lexer->current().data);
+    if(col_id == ID_NONE)
     {
         throw SyntaxError("No such column '" + std::string(lexer->current().data) + "'!");
     }
-    stmt->column_ids.emplace_back(*col_id);
+    stmt->column_ids.emplace_back(col_id);
     lexer->advance();
 }
 
@@ -294,10 +295,13 @@ void Parser::column_definition(Statement* stmt)
     ColumnMetadata metadata;
     lexer->legal_lookahead(Lexer::Token::ID);
     metadata.name = lexer->current().data;
+    metadata.id = stmt->column_definitions.size();
     lexer->advance();
 
-    lexer->legal_lookahead(Lexer::Token::ID, Lexer::Token::INT, Lexer::Token::STRING);
-    metadata.type = lexer->current().data;
+    lexer->legal_lookahead(Lexer::Token::ID);
+    std::string upper;
+    std::transform(lexer->current().data.begin(), lexer->current().data.end(), std::back_inserter(upper), ::toupper);
+    metadata.type = upper == "INT" ? Variable::Type::INT : Variable::Type::STRING; //todo: don't hardcode like this
     lexer->advance();
     stmt->column_definitions.emplace_back(std::move(metadata));
 }
@@ -615,13 +619,13 @@ void Parser::link_stmt(Statement *stmt)
     for (size_t a = 0; a < stmt->accessed_columns.size(); a++)
     {
         auto table = database->load_table(stmt->table_id);
-        auto index = table->get_column_index(stmt->accessed_columns[a].column_name);
-        if (!index)
+        auto index = table->get_metadata().get_column_index(stmt->accessed_columns[a].column_name);
+        if (index == ID_NONE)
         {
             throw SemanticError("No such column '" + std::string(stmt->accessed_columns[a].column_name) + "'");
         }
 
-        assert(*index <= std::numeric_limits<uint8_t>::max()); //todo: increase max size
-        *stmt->accessed_columns[a].bytecode_pos = *index;
+        assert(index <= std::numeric_limits<uint8_t>::max()); //todo: increase max size
+        *stmt->accessed_columns[a].bytecode_pos = static_cast<uint8_t>(index);
     }
 }

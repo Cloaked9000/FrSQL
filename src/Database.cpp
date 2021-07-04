@@ -26,7 +26,7 @@ std::shared_ptr<Table> Database::create_table(std::string name, std::vector<Colu
 {   
     const tid_t tid = ++current_tid;
     TableMetadata meta(tid, std::move(name), std::move(columns));
-    auto table = std::make_shared<Table>(std::move(meta));
+    auto table = std::make_shared<InMemoryTable>(std::move(meta));
     tables[tid] = table;
     table_lookup[table->get_metadata().name] = tid;
     return table;

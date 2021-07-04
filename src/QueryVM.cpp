@@ -7,7 +7,7 @@
 #include <Lexer.h>
 #include <string>
 #include <string_view>
-#include <stdint.h>
+#include <cstdint>
 #include <span>
 #include "QueryVM.h"
 #include "Statement.h"
@@ -40,7 +40,7 @@ void QueryVM::eval_stmt(Statement *stmt_)
     if (state.stmt->table_id != ID_NONE)
     {
         state.table = database->load_table(state.stmt->table_id);
-        state.max_rows = state.table->row_count();
+        state.max_rows = state.table->get_row_count();
     }
 
     //Evaluate any LIMIT clauses
@@ -66,7 +66,7 @@ void QueryVM::eval_stmt(Statement *stmt_)
         Variable var = stack.pop();
         if (var.type == Variable::Type::INT)
         {
-            state.table->set_sort(var.store.int64);
+           // state.table->set_sort(var.store.int64);
         }
     }
 }
@@ -104,7 +104,7 @@ bool QueryVM::run_update_cycle()
     state.finalised = true;
 
     //Update each row
-    while (state.row < state.table->row_count())
+    while (state.row < state.table->get_row_count())
     {
         //Eval the where-clause first (if there is one), don't want to update anything else
         if(!state.stmt->compiled_where_clause.empty())
@@ -128,7 +128,7 @@ bool QueryVM::run_update_cycle()
         //Now update each column in the row. Do in reverse order due to stack ordering
         for(auto id = state.stmt->column_ids.rbegin(); id != state.stmt->column_ids.rend(); ++id)
         {
-            state.table->set_col(*id, state.row, stack.pop());
+            state.table->update(state.row, *id, stack.pop());
         }
 
         state.row++;
@@ -152,13 +152,13 @@ bool QueryVM::run_delete_cycle()
     }
 
     //Else we have a where clause, evaluate it against each row
-    while (state.row < state.table->row_count())
+    while (state.row < state.table->get_row_count())
     {
         exec(state.stmt, state.stmt->compiled_where_clause);
         auto where_matched = stack.pop();
         if (where_matched.store.int64 > 0)
         {
-            state.table->delete_row(state.row);
+            state.table->erase(state.row);
             continue;
         }
         state.row++;
@@ -206,32 +206,24 @@ bool QueryVM::run_insert_cycle()
 {
     //Evaluate the insert values
     size_t value_count = exec(state.stmt, state.stmt->compiled_insert_values_clause);
-    size_t col_count = state.table->get_column_count();
+    size_t col_count = state.table->get_metadata().get_column_count();
     bool is_order_specified = !state.stmt->column_ids.empty();
     if(value_count % col_count != 0)
     {
         throw SemanticError("Can't insert wrong number of values");
     }
 
-    std::vector<Variable> ret;
-    ret.resize(col_count);
     while(value_count > 0)
     {
+        const rid_t row_id = state.table->insert();
         for(size_t a = col_count; a-- > 0;)
         {
             // Insert order can be specified for batch inserts
             // So rearrange the results to match the *actual* table order
-            if(is_order_specified)
-            {
-                ret[state.stmt->column_ids[a]] = stack.pop();
-            }
-            else
-            {
-                ret[a] = stack.pop();
-            }
+            const size_t col_id = is_order_specified ? state.stmt->column_ids[a] : a;
+            state.table->update(row_id, col_id, stack.pop());
         }
         value_count -= col_count;
-        state.table->insert(ret);
     }
 
     return state.finalised = true;
@@ -251,9 +243,9 @@ bool QueryVM::run_show_cycle()
 
 bool QueryVM::run_desc_cycle()
 {
-    std::string_view name = state.table->get_column_name(state.row);
+    std::string_view name = state.table->get_metadata().get_column_name(state.row);
     stack.push(name.data(), name.size());
-    state.finalised = ++state.row >= state.table->get_column_count();
+    state.finalised = ++state.row >= state.table->get_metadata().get_column_count();
     return true;
 }
 
@@ -361,18 +353,22 @@ size_t QueryVM::exec(Statement *stmt, std::string_view bytecode)
         do_load_col:
         {
             const auto col_index = (uint8_t)bytecode[off + 1];
-            const auto &col = state.table->load_col(state.row, col_index);
+            const auto &col = state.table->load(state.row, col_index);
             stack.push(col);
             CONSUME_BYTES(2);
             DISPATCH();
         }
         do_load_all:
         {
-            const auto &col = state.table->load_row(state.row);
-            for(const auto &c : col)
+            if(state.table)
             {
-                stack.push(c);
+                const size_t row_count = state.table->get_row_count();
+                for(size_t a = 0; a < row_count; a++)
+                {
+                    stack.push(state.table->load(state.row, a));
+                }
             }
+
             CONSUME_BYTES(1);
             DISPATCH();
         }
