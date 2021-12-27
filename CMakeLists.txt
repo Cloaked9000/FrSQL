@@ -20,7 +20,7 @@ set(SOURCE_FILES
  
 if(BUILD_TESTS)
     add_definitions(-DBUILD_TESTS)
-    set(SOURCE_FILES ${SOURCE_FILES} tests/SelectTest.cpp tests/StackTest.cpp tests/TestUtils.h)
+    set(SOURCE_FILES ${SOURCE_FILES} tests/SelectTest.cpp tests/StackTest.cpp tests/TestUtils.h src/BTree.cpp include/BTree.h tests/BTreeTest.cpp)
 
     configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
     execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" . RESULT_VARIABLE result WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )

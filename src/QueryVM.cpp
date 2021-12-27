@@ -47,7 +47,7 @@ void QueryVM::eval_stmt(Statement *stmt_)
     if (!state.stmt->compiled_limit_clause.empty())
     {
         exec(state.stmt, state.stmt->compiled_limit_clause);
-        Variable var = stack.pop();
+        Variable var(stack.pop());
         if (var.type != Variable::Type::INT)
         {
             throw SemanticError("Limit must be integral");
@@ -63,7 +63,7 @@ void QueryVM::eval_stmt(Statement *stmt_)
     if (!state.stmt->compiled_ordering_clause.empty())
     {
         exec(state.stmt, state.stmt->compiled_ordering_clause);
-        Variable var = stack.pop();
+        Variable var(stack.pop());
         if (var.type == Variable::Type::INT)
         {
            // state.table->set_sort(var.store.int64);

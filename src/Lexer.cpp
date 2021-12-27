@@ -5,32 +5,29 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-Lexer::Lexer()
-:  token_offset(0),
-  types{
-        {"SELECT",  Token::SELECT},
-        {"WHERE",  Token::WHERE},
-        {"FROM", Token::FROM},
-        {"LIMIT", Token::LIMIT},
-        {"INSERT", Token::INSERT},
-        {"INTO", Token::INTO},
-        {"VALUES", Token::VALUES},
-        {"SHOW", Token::SHOW},
-        {"TABLES", Token::TABLES},
-        {"DESC", Token::DESC},
-        {"CREATE", Token::CREATE},
-        {"TABLE", Token::TABLE},
-        {"DELETE", Token::DELETE},
-        {"IN", Token::IN},
-        {"NOT", Token::NOT},
-        {"UPDATE", Token::UPDATE},
-        {"SET", Token::SET},
-        {"ORDER", Token::ORDER},
-        {"BY", Token::BY},
-        {"ASC", Token::ASC},
-}
+ std::unordered_map<std::string, Lexer::Token::Type> Lexer::types =
 {
-}
+{"SELECT",  Token::SELECT},
+{"WHERE",  Token::WHERE},
+{"FROM", Token::FROM},
+{"LIMIT", Token::LIMIT},
+{"INSERT", Token::INSERT},
+{"INTO", Token::INTO},
+{"VALUES", Token::VALUES},
+{"SHOW", Token::SHOW},
+{"TABLES", Token::TABLES},
+{"DESC", Token::DESC},
+{"CREATE", Token::CREATE},
+{"TABLE", Token::TABLE},
+{"DELETE", Token::DELETE},
+{"IN", Token::IN},
+{"NOT", Token::NOT},
+{"UPDATE", Token::UPDATE},
+{"SET", Token::SET},
+{"ORDER", Token::ORDER},
+{"BY", Token::BY},
+{"ASC", Token::ASC},
+};
 
 bool Lexer::lex(std::string_view data_)
 {

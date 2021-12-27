@@ -1,27 +1,40 @@
 #include <iostream>
-#include <Parser.h>
-#include <QueryVM.h>
-#include <memory>
 #include <string>
-#include <chrono>
-#include <frsql.h>
+#include "BTree.h"
+#include "Lexer.h"
 
 #ifdef BUILD_TESTS
 #include <gtest/gtest.h>
+#include <chrono>
+
 #endif
-#include <frsql.h>
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
 int main(int argc, char **argv)
 {
 #ifdef BUILD_TESTS
-    if(argc > 1 && strcmp(argv[1], "test") == 0)
-    {
-        ::testing::InitGoogleTest(&argc, argv);
-        return RUN_ALL_TESTS();
-    }
+        if(argc > 1 && strstr(argv[1], "test") != nullptr)
+        {
+            ::testing::InitGoogleTest(&argc, argv);
+            return RUN_ALL_TESTS();
+        }
 #endif
+
+
+    {
+
+    }
+
+
+    return 0;
+}
+
+/*
+
+
+
+
 
     Frsql frsql;
 
@@ -83,4 +96,6 @@ int main(int argc, char **argv)
     return 0;
 }
 
+
+ */
 #pragma clang diagnostic pop

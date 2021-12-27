@@ -11,7 +11,6 @@
 class Lexer
 {
 public:
-    Lexer();
 
     struct Token
     {
@@ -108,7 +107,7 @@ public:
         : type(type_), data(data_)
         {}
 
-        Type type;
+        Type type = Type::EOI;
         std::string_view data;
     };
 
@@ -205,10 +204,10 @@ public:
 
 private:
 
-    size_t token_offset;
+    size_t token_offset = 0;
     std::string_view data;
     Token current_token;
-    std::unordered_map<std::string, Token::Type> types;
+    static std::unordered_map<std::string, Token::Type> types;
 };
 
 #endif //COMPILER_LEXER_H

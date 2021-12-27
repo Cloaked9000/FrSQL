@@ -24,7 +24,7 @@ public:
     [[nodiscard]] inline Type pop()
     {
         assert(!stack.empty());
-        Type var = std::move(stack.back());
+        Type var(std::move(stack.back()));
         stack.pop_back();
         return var;
     }

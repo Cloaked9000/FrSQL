@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 #include <frsql.h>
+#include <BTree.h>
 
 inline void PrintTo(const std::vector<row_t> &rows, ::std::ostream* os)
 {
@@ -36,6 +37,37 @@ inline void PrintTo(const std::vector<row_t> &rows, ::std::ostream* os)
         *os << "}";
     }
     *os << "}";
+}
+
+template<typename T, size_t Order>
+inline void PrintTo(const Node<T, Order> &node, ::std::ostream *os)
+{
+    if(node.count == 0)
+    {
+        *os << "(empty)";
+        return;
+    }
+
+    if(node.count > Order)
+    {
+        throw std::logic_error("Count too large");
+    }
+
+    *os << "(";
+    for(size_t a = 0; a < node.count; a++)
+    {
+        *os << node.list[a];
+        if(a != node.count - 1)
+            *os << ", ";
+    }
+    *os << "), (";
+    for(size_t a = 0; a < node.count + 1; a++)
+    {
+        *os << node.children[a];
+        if(a != node.count)
+            *os << ", ";
+    }
+    *os << ")";
 }
 
 #endif //TESTDB_TESTUTILS_H

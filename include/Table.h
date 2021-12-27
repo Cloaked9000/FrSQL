@@ -105,7 +105,7 @@ public:
 
     [[nodiscard]] Variable load(rid_t row_id, cid_t col_id) override
     {
-        return rows[row_id].column[col_id];
+        return Variable(rows[row_id].column[col_id]);
     }
 
     void update(rid_t row_id, cid_t col_id, Variable new_val) override
