@@ -40,6 +40,7 @@ public:
             ref = o.ref;
             fs = o.fs;
             o.ref = nullptr;
+            return *this;
         }
 
         void close()
@@ -49,6 +50,11 @@ public:
                 fs->close(ref);
                 ref = nullptr;
             }
+        }
+
+        bool is_open()
+        {
+            return ref != nullptr;
         }
 
         uint64_t read(char *buf, uint64_t len)

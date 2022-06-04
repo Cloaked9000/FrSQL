@@ -22,6 +22,19 @@ int main(int argc, char **argv)
         }
 #endif
 
+    auto backing = std::make_unique<MemoryBacking>();
+    BasicFilesystem fs(std::move(backing));
+    auto handle = Filesystem::Handle(&fs, fs.open("btree", true));
+
+    Tree<uint64_t, 5> tree;
+    tree.create(std::move(handle));
+    tree.insert(20);
+    tree.insert(22);
+    tree.insert(19);
+    tree.insert(25);
+    tree.insert(10);
+    tree.in_order();
+
     return 0;
 }
 

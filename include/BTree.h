@@ -11,31 +11,96 @@
 #include <iostream>
 #include <map>
 #include <cassert>
+#include <memory>
+#include "filesystem/Filesystem.h"
 
-template<typename T, size_t Order>
-struct Node
+static constexpr auto NodeOrder = 5;
+struct DiskNode;
+class NodeStore;
+
+template<typename T>
+class NodePtr
 {
 public:
-    using node_t = Node<T, Order>;
-    size_t count = 0;
-    std::array<T, Order - 1> list = {};
-    std::array<node_t*, Order> children = {};
-
-    Node()=default;
-    Node(size_t count, std::array<T, Order - 1> items, std::array<node_t*, Order> children)
-    : count(count),
-      list(std::move(items)),
-      children(std::move(children))
+    NodePtr()
+    : NodePtr(nullptr, nullptr)
     {
+
     }
 
-    bool operator==(const node_t &other) const
+    NodePtr(T *store, DiskNode *node)
+    : store(store), node(node)
+    {
+
+    }
+
+    NodePtr(const NodePtr&)=delete;
+    void operator=(const NodePtr&)=delete;
+    NodePtr(NodePtr&&o) noexcept
+            : store(o.store),
+              node(o.node)
+    {
+        o.store = nullptr;
+    }
+
+    NodePtr &operator=(NodePtr&& o) noexcept
+    {
+        release();
+        store = o.store;
+        node = o.node;
+        o.store = nullptr;
+        return *this;
+    }
+
+    ~NodePtr()
+    {
+        release();
+    }
+
+    void release()
+    {
+        if(store)
+        {
+            store->free(node);
+        }
+    }
+
+    DiskNode *operator->()
+    {
+        return node;
+    }
+
+    bool valid()
+    {
+        return node != nullptr;
+    }
+
+private:
+    T *store;
+    DiskNode *node;
+};
+
+struct NodeStoreHeader
+{
+    uint64_t root = 0;
+    uint64_t height = 0;
+    uint64_t node_count = 1;
+} __attribute__((packed));
+
+struct DiskNode
+{
+    uint64_t id = 0;
+    uint64_t list[NodeOrder - 1]{};
+    uint64_t children[NodeOrder]{};
+    uint64_t count = 0;
+
+    bool operator==(const DiskNode &other) const
     {
         if(other.count != count)
             return false;
-        if(!std::equal(other.list.begin(), other.list.begin() + count, list.begin()))
+        if(!std::equal(std::begin(other.list), std::begin(other.list) + count, std::begin(list)))
             return false;
-        if(!std::equal(other.children.begin(), other.children.begin() + count + 1, children.begin()))
+        if(!std::equal(std::begin(other.children), std::begin(other.children) + count + 1, std::begin(children)))
             return false;
         return true;
     }
@@ -43,11 +108,11 @@ public:
     void erase(size_t position)
     {
         assert(position < count);
-        for(size_t a = position; a < Order - 1; a++)
+        for(size_t a = position; a < NodeOrder - 1; a++)
         {
             list[a] = list[a + 1];
         }
-        for(size_t a = position; a < Order - 2; a++)
+        for(size_t a = position; a < NodeOrder - 2; a++)
         {
             children[a + 1] = children[a + 2];
         }
@@ -55,9 +120,9 @@ public:
         count--;
     }
 
-    void insert(T val, node_t* &right_child, size_t insert_pos)
+    void insert(uint64_t val, uint64_t right_child, size_t insert_pos)
     {
-        assert(insert_pos < Order);
+        assert(insert_pos < NodeOrder);
         size_t index;
         for(index = count; index > insert_pos; index--)
         {
@@ -65,18 +130,18 @@ public:
             children[index + 1] = children[index];
         }
 
-        list[index] = std::move(val);
+        list[index] = val;
         children[index + 1] = right_child;
         count++;
     }
 
 
-    bool is_full()
+    [[nodiscard]] bool is_full() const
     {
-        return count == Order - 1;
+        return count == NodeOrder - 1;
     }
 
-    bool search(const T &val, size_t &location)
+    bool search(uint64_t val, size_t &location)
     {
         location = 0;
         while(location < count && val > list[location])
@@ -88,9 +153,9 @@ public:
     }
 
     //Note: Overwrites last child
-    void merge_right(node_t *right)
+    void merge_right(NodePtr<NodeStore> &right)
     {
-        assert(right);
+        assert(right->count);
         for(size_t a = 0; a < right->count; a++)
         {
             list[count + a] = right->list[a];
@@ -102,23 +167,99 @@ public:
 
         count += right->count;
     }
+} __attribute__((packed));
 
+class NodeStore
+{
+public:
+    ~NodeStore()
+    {
+        close();
+    }
+
+    bool create(Filesystem::Handle file_)
+    {
+        file = std::move(file_);
+        file.seek(0);
+        file.write(reinterpret_cast<char *>(&header), sizeof(header));
+        return true;
+    }
+
+    bool open(Filesystem::Handle file_)
+    {
+        file = std::move(file_);
+        return true;
+    }
+
+    void close()
+    {
+        if(file.is_open())
+        {
+            file.seek(0);
+            file.write(reinterpret_cast<char *>(&header), sizeof(header));
+        }
+    }
+
+    NodePtr<NodeStore> alloc()
+    {
+        uint64_t id = header.node_count++;
+        auto iter = nodes.emplace(id, DiskNode());
+        iter.first->second.id= id;
+        return {this, &iter.first->second};
+    }
+
+    void free(DiskNode *node)
+    {
+
+    }
+
+    NodePtr<NodeStore> load_root()
+    {
+        return load(header.root);
+    }
+
+    NodePtr<NodeStore> load(uint64_t id)
+    {
+        auto const iter = nodes.find(id);
+        return iter == nodes.end() ? NodePtr<NodeStore>(nullptr, nullptr) : NodePtr<NodeStore>(this, &iter->second);
+    }
+
+    void set_root(NodePtr<NodeStore> &node)
+    {
+        header.root = node->id;
+    }
+
+    uint64_t &height()
+    {
+        return header.height;
+    }
+
+private:
+    NodeStoreHeader header;
+    Filesystem::Handle file;
+    std::unordered_map<uint64_t, DiskNode> nodes;
 };
 
 template<typename T, size_t Order>
 class Tree
 {
 public:
-    using node_t = Node<T, Order>;
-    Tree()
+    Tree()=default;
+
+    bool create(Filesystem::Handle file)
     {
-        root = nullptr;
+        return store.create(std::move(file));
     }
 
-    bool search(const T &val)
+    bool open(Filesystem::Handle file)
     {
-        node_t *node = root;
-        while(root)
+        return store.open(std::move(file));
+    }
+
+    bool search(const uint64_t val)
+    {
+        auto node = store.load_root();
+        while(node->count)
         {
             size_t location;
             if(node->search(val, location))
@@ -126,7 +267,7 @@ public:
                 return true;
             }
 
-            node = node->children[location];
+            node = store.load(node->children[location]);
         }
 
         return false;
@@ -144,24 +285,26 @@ public:
         bool is_taller = false;
         T median;
 
-        node_t *right_child;
+        NodePtr<NodeStore> right_child;
+        auto root = store.load_root();
         insert_btree(root, std::move(val), median, right_child, is_taller);
 
         if(is_taller)
         {
-            auto *temp_root = new node_t();
+            auto temp_root = store.alloc();
             temp_root->count = 1;
             temp_root->list[0] = median;
-            temp_root->children[0] = root;
-            temp_root->children[1] = right_child;
-            root = temp_root;
-            height++;
+            temp_root->children[0] = store.load_root().valid() ? store.load_root()->id : 0;
+            temp_root->children[1] = right_child.valid() ? right_child->id : 0;
+            store.set_root(temp_root);
+            store.height()++;
         }
     }
 
     void in_order()
     {
         std::map<size_t, std::vector<T>> levels;
+        auto root = store.load_root();
         recurse(root, 0, levels);
 
         for(auto iter = levels.begin(); iter != levels.end(); iter++)
@@ -179,7 +322,7 @@ public:
         size_t position = 0;
         size_t depth = 1;
         bool doDelete = false;
-        if(!erase(root, depth, val, doDelete, position))
+        if(!erase(store.load_root(), depth, val, doDelete, position))
         {
             return false;
         }
@@ -193,8 +336,9 @@ public:
            // rebalance_node(root, position, doDelete);
             if(doDelete)
             {
-                root = root->children[0];
-                height--;
+                auto new_root = store.load(store.load_root()->children[0]);
+                store.set_root(new_root);
+                store.height()--;
             }
         }
 #pragma clang diagnostic pop
@@ -204,23 +348,22 @@ public:
 private:
 public:
 
-    void rebalance_node(node_t *node, size_t position, bool &doDelete)
+    void rebalance_node(NodePtr<NodeStore> &node, size_t position, bool &doDelete)
     {
 
         //Check each sibling node to see if either has more than the minimum
-        if(position > 0 && node->children[position - 1]->count > Order / 2)
+        if(position > 0 && store.load(node->children[position - 1])->count > Order / 2)
         {
             //Left sibling has enough. Move a key from left sibling into us, and one of our keys into right sibling
-            node_t *left_child = node->children[position - 1];
-            node_t *right_child = node->children[position];
+            auto left_child = store.load(node->children[position - 1]);
+            auto right_child = store.load(node->children[position]);
 
             //Extract highest key from left child
             T left_val = left_child->list[left_child->count - 1];
             left_child->erase(left_child->count - 1);
 
             //Move our key into right child
-            node_t *empty = nullptr;
-            right_child->insert(node->list[position - 1], empty, 0);
+            right_child->insert(node->list[position - 1], 0, 0);
 
             //Replace moved key with left
             node->list[position - 1] = left_val;
@@ -228,19 +371,18 @@ public:
             //Now we're good
             doDelete = false;
         }
-        else if(node->children[position + 1] && node->children[position + 1]->count > Order / 2)
+        else if(node->children[position + 1] && store.load(node->children[position + 1])->count > Order / 2)
         {
             //Right has enough
-            node_t *left_child = node->children[position];
-            node_t *right_child = node->children[position + 1];
+            auto left_child = store.load(node->children[position]);
+            auto right_child = store.load(node->children[position + 1]);
 
             //Extract lowest key from right child
             T right_val = right_child->list[0];
             right_child->erase(0);
 
             //Move our key into left child
-            node_t *empty = nullptr;
-            left_child->insert(node->list[position], empty, right_child->count);
+            left_child->insert(node->list[position], 0, right_child->count);
 
             //Replace moved key with right
             node->list[position] = right_val;
@@ -250,25 +392,24 @@ public:
         else
         {
             //Else neither has enough, so we need to merge two siblings
-            node_t *empty = nullptr;
             size_t median_pos;
-            node_t *left, *right;
+            NodePtr<NodeStore> left, right;
             if(node->children[position + 1])
             {
                 //Merge with right sibling
-                left = node->children[position];
-                right = node->children[position + 1];
+                left = store.load(node->children[position]);
+                right = store.load(node->children[position + 1]);
                 median_pos = position;
             }
             else
             {
                 //Merge with left sibling
-                left = node->children[position - 1];
-                right = node->children[position];
+                left = store.load(node->children[position - 1]);
+                right = store.load(node->children[position]);
                 median_pos = position - 1;
             }
 
-            left->insert(node->list[median_pos], empty, left->count);
+            left->insert(node->list[median_pos], 0, left->count);
             left->merge_right(right);
 
             node->erase(median_pos);
@@ -276,7 +417,7 @@ public:
         }
     }
 
-    bool erase(node_t *node, size_t depth, const T &val, bool &doDelete, size_t position)
+    bool erase(DiskNode *node, size_t depth, const T &val, bool &doDelete, size_t position)
     {
         if(!node)
         {
@@ -301,9 +442,9 @@ public:
         // We've found it, found is true
         {
             // If we're not in a leaf, swap with child & erase from child instead
-            if(depth != height)
+            if(depth != store.height())
             {
-                node_t *leaf = node->children[position];
+                auto leaf = store.load(node->children[position]);
                 std::swap(node->list[position], leaf->list[leaf->count - 1]);
                 bool erased = erase(leaf, ++depth, val, doDelete, leaf->count - 1);
                 if(doDelete)
@@ -328,29 +469,30 @@ public:
         return true;
     }
 
-    void recurse(node_t *node, size_t level, std::map<size_t, std::vector<T>> &levels)
+    void recurse(NodePtr<NodeStore> &node, size_t level, std::map<size_t, std::vector<T>> &levels)
     {
-        if(!node)
+        if(!node.valid())
         {
             return;
         }
 
-        recurse(node->children[0], level + 1, levels);
+        auto c1 = store.load(node->children[0]);
+        recurse(c1, level + 1, levels);
         for(size_t a = 0; a < node->count; a++)
         {
-            levels[level].emplace_back(node->list[a]);
-            recurse(node->children[a + 1], level + 1, levels);
+            levels[level].emplace_back((uint64_t)node->list[a]);
+            auto c2 = store.load(node->children[a + 1]);
+            recurse(c2, level + 1, levels);
         }
         levels[level].emplace_back();
     }
 
-    void insert_btree(node_t *node, T val, T &median, node_t* &right_child, bool &is_taller)
+    void insert_btree(NodePtr<NodeStore> &node, T val, T &median, NodePtr<NodeStore> &right_child, bool &is_taller)
     {
-        if(!node)
+        if(!node.valid())
         {
             //B-tree is empty or search ends at empty subtree
             median = val;
-            right_child = nullptr;
             is_taller = true;
             return;
         }
@@ -362,27 +504,31 @@ public:
             throw std::logic_error("Item already in tree!");
         }
 
-        insert_btree(node->children[location], val, median, right_child, is_taller);
+        auto parent = store.load(node->children[location]);
+        insert_btree(parent, val, median, right_child, is_taller);
         if(is_taller)
         {
             if(node->is_full())
             {
-                node_t *right;
+                NodePtr<NodeStore> right;
                 split_node(node, median, right_child, location, right, median);
-                right_child = right;
+                if(right->count)
+                {
+                    right_child = std::move(right);
+                }
             }
             else
             {
-                node->insert(median, right_child, location);
+                node->insert(median, right_child.valid() ? right_child->id : 0, location);
                 is_taller = false;
             }
         }
 
     }
 
-    void split_node(node_t *node, T val, node_t *right_child, size_t insert_pos, node_t* &right_node, T &median)
+    void split_node(NodePtr<NodeStore> &node, T val, NodePtr<NodeStore> &right_child, size_t insert_pos, NodePtr<NodeStore> &right_node, T &median)
     {
-        right_node = new node_t();
+        right_node = store.alloc();
         size_t mid = (Order - 1) / 2;
 
         // Insert into left side
@@ -400,7 +546,7 @@ public:
             }
 
             node->count = mid;
-            node->insert(std::move(val), right_child, insert_pos);
+            node->insert(std::move(val), right_child.valid() ? right_child->id : 0, insert_pos);
             node->count--;
             median = node->list[node->count];
 
@@ -423,14 +569,13 @@ public:
             right_node->count = index;
 
             median = node->list[mid];
-            right_node->insert(val, right_child, insert_pos - mid - 1);
+            right_node->insert(val, right_child.valid() ? right_child->id : 0, insert_pos - mid - 1);
             right_node->children[0] = node->children[node->count + 1];
         }
     }
 
 
-    node_t *root;
-    size_t height = 0;
+    NodeStore store;
 };
 
 #endif //TESTDB_BTREE_H

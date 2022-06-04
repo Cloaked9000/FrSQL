@@ -1,7 +1,7 @@
 //
 // Created by fred on 01/08/2021.
 //
-
+/*
 #include "TestUtils.h"
 #include "BTree.h"
 
@@ -213,3 +213,4 @@ TEST(BTreeTest, test_insert)
     ASSERT_TRUE(assert_node(tree.root->children[3], {79, 81}));
     ASSERT_TRUE(assert_node(tree.root->children[4], {95, 98, 100, 150}));
 }
+ */

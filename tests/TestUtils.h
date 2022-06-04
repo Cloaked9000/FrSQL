@@ -38,7 +38,7 @@ inline void PrintTo(const std::vector<row_t> &rows, ::std::ostream* os)
     }
     *os << "}";
 }
-
+/*
 template<typename T, size_t Order>
 inline void PrintTo(const Node<T, Order> &node, ::std::ostream *os)
 {
@@ -69,5 +69,6 @@ inline void PrintTo(const Node<T, Order> &node, ::std::ostream *os)
     }
     *os << ")";
 }
+ */
 
 #endif //TESTDB_TESTUTILS_H
