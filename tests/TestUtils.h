@@ -7,7 +7,7 @@
 
 #include <gtest/gtest.h>
 #include <frsql.h>
-#include <BTree.h>
+#include "btree/BTree.h"
 
 inline void PrintTo(const std::vector<row_t> &rows, ::std::ostream* os)
 {
@@ -40,7 +40,7 @@ inline void PrintTo(const std::vector<row_t> &rows, ::std::ostream* os)
 }
 /*
 template<typename T, size_t Order>
-inline void PrintTo(const Node<T, Order> &node, ::std::ostream *os)
+inline void PrintTo(const NodePtr<T, Order> &node, ::std::ostream *os)
 {
     if(node.count == 0)
     {

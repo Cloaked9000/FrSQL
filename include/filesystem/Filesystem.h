@@ -14,6 +14,12 @@ public:
     class Handle
     {
     public:
+        Handle()
+        : Handle(nullptr, nullptr)
+        {
+
+        }
+
         explicit Handle(Filesystem *fs, void *ref)
         : fs(fs), ref(ref)
         {
@@ -31,7 +37,7 @@ public:
         Handle(Handle&& o) noexcept
         : fs(o.fs), ref(o.ref)
         {
-
+            o.ref = nullptr;
         }
 
         Handle& operator=(Handle&& o) noexcept
@@ -69,7 +75,7 @@ public:
 
         void seek(uint64_t position)
         {
-            fs->seek(fs, position);
+            fs->seek(ref, position);
         }
         uint64_t tell()
         {

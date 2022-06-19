@@ -4,7 +4,7 @@ include_directories(include)
 set(CMAKE_CXX_STANDARD 20)
 
 # Build options
-option(BUILD_TESTS "Build FrSQL tests" ON)
+option(BUILD_TESTS "Build FrSQL tests" OFF)
 
 set(SOURCE_FILES
         main.cpp
@@ -15,7 +15,7 @@ set(SOURCE_FILES
         include/Parser.h
         include/Lexer.h
         include/exceptions/SyntaxError.h
-        include/exceptions/SemanticError.h include/Statement.h src/QueryVM.cpp include/QueryVM.h include/Opcode.h src/Table.cpp include/Table.h include/Database.h src/Database.cpp "include/frsql.h" "include/exceptions/DatabaseError.h" src/Stack.cpp include/Stack.h src/BTree.cpp include/BTree.h include/filesystem/Filesystem.h src/filesystem/BasicFilesystem.cpp include/filesystem/BasicFilesystem.h include/filesystem/FilesystemBacking.h)
+        include/exceptions/SemanticError.h include/Statement.h src/QueryVM.cpp include/QueryVM.h include/Opcode.h src/Table.cpp include/Table.h include/Database.h src/Database.cpp "include/frsql.h" "include/exceptions/DatabaseError.h" src/Stack.cpp include/Stack.h src/btree/BTree.cpp include/btree/BTree.h include/filesystem/Filesystem.h src/filesystem/BasicFilesystem.cpp include/filesystem/BasicFilesystem.h include/filesystem/FilesystemBacking.h include/btree/Node.h src/btree/Node.cpp src/btree/NodeStore.cpp include/btree/NodeStore.h)
 
  
 if(BUILD_TESTS)
@@ -37,6 +37,7 @@ if(BUILD_TESTS)
 endif()
 
 add_executable(TestDB ${SOURCE_FILES})
+add_link_options(TestDB -fsanitize=address)
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" AND "x${CMAKE_CXX_SIMULATE_ID}" STREQUAL "xMSVC")
     target_compile_options(TestDB PRIVATE /EHa)
 endif()

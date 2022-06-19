@@ -6,7 +6,7 @@
 #include "BTree.h"
 
 using tree_t = Tree<int, 5>;
-using node_t = Node<int, 5>;
+using node_t = NodePtr<int, 5>;
 
 tree_t::node_t *make(const std::vector<int>& num, const std::vector<Tree<int, 5>::node_t*> &children = {})
 {

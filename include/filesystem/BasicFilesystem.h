@@ -39,7 +39,7 @@ public:
 
 private:
     bool load();
-    void *create(const std::string &name);
+    bool create(const std::string &name);
 
     PAGE_HEADER read_page_header(uint64_t index);
     STREAM_HEADER read_stream_header(uint64_t index);

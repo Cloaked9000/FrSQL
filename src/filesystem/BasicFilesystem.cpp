@@ -12,7 +12,7 @@ struct PAGE_HEADER
     uint64_t previous_page = 0;
     uint64_t current_page = 0;
     uint64_t next_page = 0;
-} __attribute__((packed));
+};
 
 struct STREAM_HEADER
 {
@@ -20,7 +20,7 @@ struct STREAM_HEADER
     uint64_t page = 0;
     uint64_t size = 0;
     uint64_t id = 0;
-} __attribute__((packed));
+};
 
 
 struct StreamHandle
@@ -152,7 +152,14 @@ void *BasicFilesystem::open(const std::string &name, bool should_create)
 
     if(iter == streams.end())
     {
-        return should_create ? create(name) : nullptr;
+        if(!should_create)
+        {
+            return nullptr;
+        }
+
+        create(name);
+        void *h =  open(name, false);
+        return h;
     }
 
     auto handle = new StreamHandle();
@@ -196,7 +203,7 @@ uint64_t BasicFilesystem::alloc_page(uint64_t previous_page)
     return page;
 }
 
-void *BasicFilesystem::create(const std::string &name)
+bool BasicFilesystem::create(const std::string &name)
 {
     assert(!name.empty());
     assert(name.size() <= sizeof(STREAM_HEADER::name));
@@ -213,7 +220,7 @@ void *BasicFilesystem::create(const std::string &name)
     write_page_header(page);
 
     streams.emplace_back(stream);
-    return open(name, false);
+    return true;
 }
 
 void BasicFilesystem::seek(void *handle_, uint64_t position)

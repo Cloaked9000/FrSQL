@@ -147,6 +147,10 @@ public:
                 abort();
         }
 
+        if(cursor > buffer->size())
+        {
+            __debugbreak();
+        }
         assert(cursor <= buffer->size());
     }
 
