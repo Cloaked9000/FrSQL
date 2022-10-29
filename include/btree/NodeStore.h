@@ -28,6 +28,7 @@ public:
 
     bool create(Filesystem::Handle file_)
     {
+        assert(file_.is_open());
         file = std::move(file_);
         file.seek(0);
         file.write(reinterpret_cast<char *>(&header), sizeof(header));
@@ -36,6 +37,7 @@ public:
 
     bool open(Filesystem::Handle file_)
     {
+        assert(file_.is_open());
         file = std::move(file_);
         file.seek(0);
         file.read(reinterpret_cast<char *>(&header), sizeof(header));
@@ -48,6 +50,7 @@ public:
         {
             file.seek(0);
             file.write(reinterpret_cast<char *>(&header), sizeof(header));
+            file.close();
         }
     }
 

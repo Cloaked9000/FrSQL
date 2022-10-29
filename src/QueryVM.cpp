@@ -12,7 +12,7 @@
 #include "QueryVM.h"
 #include "Statement.h"
 #include "Database.h"
-#include "Table.h"
+#include "table/Table.h"
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "UnreachableCode"
@@ -213,18 +213,19 @@ bool QueryVM::run_insert_cycle()
         throw SemanticError("Can't insert wrong number of values");
     }
 
+    std::vector<Variable> values(col_count);
     while(value_count > 0)
     {
-        const rid_t row_id = state.table->insert();
         for(size_t a = col_count; a-- > 0;)
         {
             // Insert order can be specified for batch inserts
             // So rearrange the results to match the *actual* table order
             const size_t col_id = is_order_specified ? state.stmt->column_ids[a] : a;
-            state.table->update(row_id, col_id, stack.pop());
+            values[col_id] = stack.pop();
         }
         value_count -= col_count;
     }
+    state.table->insert(values);
 
     return state.finalised = true;
 }

@@ -3,6 +3,7 @@
 //
 
 #include <memory>
+#include <algorithm>
 #include "filesystem/BasicFilesystem.h"
 #include "filesystem/FilesystemBacking.h"
 
@@ -58,12 +59,13 @@ bool BasicFilesystem::Format(const std::unique_ptr<FilesystemBacking> &backing)
 bool BasicFilesystem::load()
 {
     bool failed = false;
+    backing->seekg(0, std::ios::beg);
     failed |= !backing->read(reinterpret_cast<char*>(&fs_header), sizeof(fs_header));
     for(uint64_t a = 0; a < fs_header.stream_count; a++)
     {
         streams.emplace_back(read_stream_header(a));
     }
-    return failed;
+    return !failed;
 }
 
 void BasicFilesystem::close(void *handle)
@@ -110,7 +112,7 @@ uint64_t BasicFilesystem::read(void *handle_, char *buf, uint64_t len)
     return bytes_read;
 }
 
-void BasicFilesystem::write(void *handle_, char *buf, uint64_t len)
+void BasicFilesystem::write(void *handle_, const char *buf, uint64_t len)
 {
     auto handle = reinterpret_cast<StreamHandle*>(handle_);
     while(len)
@@ -223,7 +225,7 @@ bool BasicFilesystem::create(const std::string &name)
     return true;
 }
 
-void BasicFilesystem::seek(void *handle_, uint64_t position)
+uint64_t BasicFilesystem::seek(void *handle_, uint64_t position)
 {
     auto handle = reinterpret_cast<StreamHandle*>(handle_);
 
@@ -235,7 +237,7 @@ void BasicFilesystem::seek(void *handle_, uint64_t position)
         {
             handle->cursor = PAGE_SIZE;
             handle->stream_pos = handle->stream.size;
-            return;
+            return handle->stream_pos;
         }
 
         handle->currentPage = read_page_header(handle->currentPage.next_page);
@@ -250,12 +252,13 @@ void BasicFilesystem::seek(void *handle_, uint64_t position)
 
     handle->cursor = sizeof(PAGE_HEADER) + (position % (PAGE_SIZE - sizeof(PAGE_HEADER)));
     handle->stream_pos = position > handle->stream.size ? handle->stream.size : position;
+    return handle->stream_pos;
 }
 
 STREAM_HEADER BasicFilesystem::read_stream_header(uint64_t index)
 {
     STREAM_HEADER ret;
-    backing->read(reinterpret_cast<char *>(&streams.back()), sizeof(STREAM_HEADER));
+    assert(backing->read(reinterpret_cast<char *>(&ret), sizeof(STREAM_HEADER)));
     return ret;
 }
 

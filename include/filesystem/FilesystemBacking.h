@@ -30,7 +30,7 @@ public:
         assert(!file.is_open());
         if(create)
         {
-            file.open(path, std::ios::out | std::ios::trunc);
+            file.open(path, std::ios::out);
             file.close();
         }
 
@@ -43,6 +43,7 @@ public:
         assert(file.is_open());
         assert(file.good());
         file.write(buf, buflen);
+        assert(file.good());
         return file.good();
     }
 
@@ -51,6 +52,7 @@ public:
         assert(file.is_open());
         assert(file.good());
         file.read(buf, buflen);
+        assert(file.good());
         return file.good();
     }
 

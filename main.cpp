@@ -4,14 +4,15 @@
 #include "Lexer.h"
 #include "filesystem/Filesystem.h"
 #include "filesystem/BasicFilesystem.h"
+#include "frsql.h"
 
 #ifdef BUILD_TESTS
 #include <gtest/gtest.h>
 #include <chrono>
 #endif
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "EndlessLoop"
+#include <ranges>
+
 int main(int argc, char **argv)
 {
 #ifdef BUILD_TESTS
@@ -22,42 +23,10 @@ int main(int argc, char **argv)
         }
 #endif
 
-    std::string data;
-    std::unique_ptr<FilesystemBacking> backing(new MemoryBacking(&data));
-
-    BasicFilesystem::Format(backing);
-    BasicFilesystem fs(std::move(backing));
-
-    {
-        Tree tree;
-        auto handle = Filesystem::Handle(&fs, fs.open("btree", true));
-        tree.create(std::move(handle));
-
-        tree.insert(10, 20, 30, 40, 50);
-        tree.in_order();
-    }
-    std::cout << "-----" << std::endl;
-    {
-        Tree tree;
-        auto handle = Filesystem::Handle(&fs, fs.open("btree", false));
-        tree.open(std::move(handle));
-        tree.in_order();
-    }
-
-    std::cout << data << std::endl;
-
-
-
-    return 0;
-}
-
-/*
-
-
-
 
 
     Frsql frsql;
+
 
 //    auto begin = std::chrono::steady_clock::now();
 //    for(size_t a = 0; a < 9000000; a++)
@@ -85,6 +54,11 @@ int main(int argc, char **argv)
             return RUN_ALL_TESTS();
         }
 #endif
+
+        if(query == "exit")
+        {
+            break;
+        }
 
         try
         {
@@ -116,7 +90,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-
-
- */
-#pragma clang diagnostic pop

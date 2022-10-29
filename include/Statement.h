@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include "TableMetadata.h"
+#include "table/TableMetadata.h"
 #include "Lexer.h"
 
 struct Statement

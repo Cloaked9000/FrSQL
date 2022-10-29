@@ -33,8 +33,8 @@ public:
     void *open(const std::string &name, bool create) override;
     void close(void *handle) override;
     uint64_t read(void *handle_, char *buf, uint64_t len) override;
-    void write(void *handle, char *buf, uint64_t len) override;
-    void seek(void *handle, uint64_t position) override;
+    void write(void *handle, const char *buf, uint64_t len) override;
+    uint64_t seek(void *handle, uint64_t position) override;
     uint64_t tell(void *handle) override;
 
 private:

@@ -10,12 +10,12 @@ set(SOURCE_FILES
         main.cpp
         src/Parser.cpp
         src/Lexer.cpp
-        include/TableMetadata.h
+        include/table/TableMetadata.h
         include/Variable.h
         include/Parser.h
         include/Lexer.h
         include/exceptions/SyntaxError.h
-        include/exceptions/SemanticError.h include/Statement.h src/QueryVM.cpp include/QueryVM.h include/Opcode.h src/Table.cpp include/Table.h include/Database.h src/Database.cpp "include/frsql.h" "include/exceptions/DatabaseError.h" src/Stack.cpp include/Stack.h src/btree/BTree.cpp include/btree/BTree.h include/filesystem/Filesystem.h src/filesystem/BasicFilesystem.cpp include/filesystem/BasicFilesystem.h include/filesystem/FilesystemBacking.h include/btree/Node.h src/btree/Node.cpp src/btree/NodeStore.cpp include/btree/NodeStore.h)
+        include/exceptions/SemanticError.h include/Statement.h src/QueryVM.cpp include/QueryVM.h include/Opcode.h src/table/Table.cpp include/table/Table.h include/Database.h src/Database.cpp "include/frsql.h" "include/exceptions/DatabaseError.h" src/Stack.cpp include/Stack.h src/btree/BTree.cpp include/btree/BTree.h include/filesystem/Filesystem.h src/filesystem/BasicFilesystem.cpp include/filesystem/BasicFilesystem.h include/filesystem/FilesystemBacking.h include/btree/Node.h src/btree/Node.cpp src/btree/NodeStore.cpp include/btree/NodeStore.h src/table/RowStorage.cpp include/table/RowStorage.h src/table/TableStorage.cpp include/table/TableStorage.h include/serializers/Serializer.h include/serializers/Stl.h include/serializers/Table.h include/serializers/FilehandleSerializerAdapter.h)
 
  
 if(BUILD_TESTS)

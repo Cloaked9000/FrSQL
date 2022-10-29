@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cstdint>
 #include <algorithm>
+#include <string>
 
 static constexpr auto NodeOrder = 5;
 
@@ -72,6 +73,7 @@ struct Node
 {
     uint64_t id = 0;
     uint64_t list[NodeOrder - 1]{};
+    uint64_t values[NodeOrder - 1]{};
     uint64_t children[NodeOrder]{};
     uint64_t count = 0;
 
@@ -92,6 +94,7 @@ struct Node
         for(size_t a = position; a < NodeOrder - 2; a++)
         {
             list[a] = list[a + 1];
+            values[a] = values[a + 1];
         }
         for(size_t a = position; a < NodeOrder - 2; a++)
         {
@@ -101,17 +104,19 @@ struct Node
         count--;
     }
 
-    void insert(uint64_t val, uint64_t right_child, size_t insert_pos)
+    void insert(uint64_t val, uint64_t val2, uint64_t right_child, size_t insert_pos)
     {
         assert(insert_pos < NodeOrder);
         size_t index;
         for(index = count; index > insert_pos; index--)
         {
             list[index] = list[index - 1];
+            values[index] = values[index - 1];
             children[index + 1] = children[index];
         }
 
         list[index] = val;
+        values[index] = val2;
         children[index + 1] = right_child;
         count++;
     }
@@ -140,6 +145,7 @@ struct Node
         for(size_t a = 0; a < right->count; a++)
         {
             list[count + a] = right->list[a];
+            values[count + a] = right->values[a];
         }
         for(size_t a = 0; a < right->count + 1; a++)
         {

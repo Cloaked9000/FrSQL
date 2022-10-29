@@ -11,10 +11,18 @@ class Frsql
 public:
     Frsql()
     {
-        database = std::make_shared<Database>();
+        database = std::make_shared<Database>("MyDB");
         vm = std::make_unique<QueryVM>(database);
         lexer = std::make_shared<Lexer>();
         parser = std::make_unique<Parser>(database, lexer);
+    }
+
+    ~Frsql()
+    {
+        vm = nullptr;
+        lexer = nullptr;
+        parser = nullptr;
+        database = nullptr;
     }
 
     int exec(const std::string_view sql)

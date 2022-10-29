@@ -4,7 +4,7 @@
 #include <Parser.h>
 #include <exceptions/SemanticError.h>
 #include <Opcode.h>
-#include <Table.h>
+#include "table/Table.h"
 #include <charconv>
 
 Parser::Parser(std::shared_ptr<Database> database_, std::shared_ptr<Lexer> lexer_)
@@ -310,7 +310,15 @@ void Parser::column_definition(Statement* stmt)
 void Parser::table_name(Statement *stmt)
 {
     lexer->legal_lookahead(Lexer::Token::ID);
-    stmt->table_id = database->lookup_table(lexer->current().data);
+    if(auto id = database->lookup_table(lexer->current().data))
+    {
+        stmt->table_id = *id;
+    }
+    else
+    {
+        throw SemanticError("No such table '" + std::string(lexer->current().data) + "'");
+    }
+
     lexer->advance();
 }
 

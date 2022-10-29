@@ -22,13 +22,18 @@ bool Tree::open(Filesystem::Handle file)
 }
 
 
-bool Tree::search(const uint64_t val)
+std::optional<uint64_t> Tree::search(const uint64_t key)
 {
     auto node = store.load_root();
+    if(!node.valid())
+    {
+        return {};
+    }
+
     while(node->count)
     {
         size_t location;
-        if(node->search(val, location))
+        if(node->search(key, location))
         {
             return true;
         }
@@ -39,14 +44,14 @@ bool Tree::search(const uint64_t val)
     return false;
 }
 
-void Tree::insert(uint64_t val)
+void Tree::insert(uint64_t key, uint64_t val)
 {
     bool is_taller = false;
     uint64_t median;
 
     NodePtr right_child;
     auto root = store.load_root();
-    insert_btree(root, std::move(val), median, right_child, is_taller);
+    insert_btree(root, key, val, median, right_child, is_taller);
 
     if(is_taller)
     {
@@ -79,13 +84,13 @@ void Tree::in_order()
     }
 }
 
-bool Tree::erase(uint64_t val)
+bool Tree::erase(uint64_t key)
 {
     size_t position = 0;
     size_t depth = 1;
     bool doDelete = false;
     auto root = store.load_root();
-    if(!erase(root, depth, val, doDelete, position))
+    if(!erase(root, depth, key, doDelete, position))
     {
         return false;
     }
@@ -119,13 +124,15 @@ void Tree::rebalance_node(NodePtr &node, size_t position, bool &doDelete)
 
         //Extract highest key from left child
         uint64_t left_val = left_child->list[left_child->count - 1];
+        uint64_t left_val2 = left_child->values[left_child->count - 1];
         left_child->erase(left_child->count - 1);
 
         //Move our key into right child
-        right_child->insert(node->list[position - 1], 0, 0);
+        right_child->insert(node->list[position - 1], node->values[position - 1], 0, 0);
 
         //Replace moved key with left
         node->list[position - 1] = left_val;
+        node->values[position - 1] = left_val2;
 
         //Now we're good
         doDelete = false;
@@ -138,13 +145,15 @@ void Tree::rebalance_node(NodePtr &node, size_t position, bool &doDelete)
 
         //Extract lowest key from right child
         uint64_t right_val = right_child->list[0];
+        uint64_t right_val2 = right_child->values[0];
         right_child->erase(0);
 
         //Move our key into left child
-        left_child->insert(node->list[position], 0, right_child->count);
+        left_child->insert(node->list[position], node->values[position], 0, right_child->count);
 
         //Replace moved key with right
         node->list[position] = right_val;
+        node->values[position] = right_val2;
 
         doDelete = false;
     }
@@ -168,7 +177,7 @@ void Tree::rebalance_node(NodePtr &node, size_t position, bool &doDelete)
             median_pos = position - 1;
         }
 
-        left->insert(node->list[median_pos], 0, left->count);
+        left->insert(node->list[median_pos], node->values[median_pos], 0, left->count);
         left->merge_right(right);
 
         node->erase(median_pos);
@@ -176,19 +185,19 @@ void Tree::rebalance_node(NodePtr &node, size_t position, bool &doDelete)
     }
 }
 
-bool Tree::erase(NodePtr &node, size_t depth, uint64_t val, bool &doDelete, size_t position)
+bool Tree::erase(NodePtr &node, size_t depth, uint64_t key, bool &doDelete, size_t position)
 {
     if(!node.valid())
     {
         return false;
     }
 
-    bool found = node->search(val, position);
+    bool found = node->search(key, position);
     if(!found)
     {
         // Keep searching
         auto child = store.load(node->children[position]);
-        bool erased = erase(child, ++depth, val, doDelete, position);
+        bool erased = erase(child, ++depth, key, doDelete, position);
 
         // If the recursive erase succeeded, and we're in a re-balance state, re-balance the child
         if(doDelete)
@@ -206,7 +215,7 @@ bool Tree::erase(NodePtr &node, size_t depth, uint64_t val, bool &doDelete, size
         {
             auto leaf = store.load(node->children[position]);
             std::swap(node->list[position], leaf->list[leaf->count - 1]);
-            bool erased = erase(leaf, ++depth, val, doDelete, leaf->count - 1);
+            bool erased = erase(leaf, ++depth, key, doDelete, leaf->count - 1);
             if(doDelete)
             {
                 rebalance_node(node, position, doDelete);
@@ -247,32 +256,31 @@ void Tree::recurse(NodePtr &node, size_t level, std::map<size_t, std::vector<uin
     levels[level].emplace_back();
 }
 
-void Tree::insert_btree(NodePtr &node, uint64_t val, uint64_t &median, NodePtr &right_child,
-                        bool &is_taller)
+void Tree::insert_btree(NodePtr &node, uint64_t key, uint64_t val, uint64_t &median, NodePtr &right_child, bool &is_taller)
 {
     if(!node.valid())
     {
         //B-tree is empty or search ends at empty subtree
-        median = val;
+        median = key;
         is_taller = true;
         return;
     }
 
     size_t location;
-    bool found = node->search(val, location);
+    bool found = node->search(key, location);
     if(found)
     {
         throw std::logic_error("Item already in tree!");
     }
 
     auto parent = store.load(node->children[location]);
-    insert_btree(parent, val, median, right_child, is_taller);
+    insert_btree(parent, key, val, median, right_child, is_taller);
     if(is_taller)
     {
         if(node->is_full())
         {
             NodePtr right;
-            split_node(node, median, right_child, location, right, median);
+            split_node(node, median, val, right_child, location, right, median);
             if(right->count)
             {
                 right_child = std::move(right);
@@ -280,15 +288,14 @@ void Tree::insert_btree(NodePtr &node, uint64_t val, uint64_t &median, NodePtr &
         }
         else
         {
-            node->insert(median, right_child.valid() ? right_child->id : 0, location);
+            node->insert(median, val, right_child.valid() ? right_child->id : 0, location);
             is_taller = false;
         }
     }
 
 }
 
-void Tree::split_node(NodePtr &node, uint64_t val, NodePtr &right_child, size_t insert_pos,
-                      NodePtr &right_node, uint64_t &median)
+void Tree::split_node(NodePtr &node, uint64_t key, uint64_t val, NodePtr &right_child, size_t insert_pos, NodePtr &right_node, uint64_t &median)
 {
     right_node = store.alloc();
     size_t mid = (NodeOrder - 1) / 2;
@@ -308,7 +315,7 @@ void Tree::split_node(NodePtr &node, uint64_t val, NodePtr &right_child, size_t 
         }
 
         node->count = mid;
-        node->insert(std::move(val), right_child.valid() ? right_child->id : 0, insert_pos);
+        node->insert(key, val, right_child.valid() ? right_child->id : 0, insert_pos);
         node->count--;
         median = node->list[node->count];
 
@@ -331,7 +338,7 @@ void Tree::split_node(NodePtr &node, uint64_t val, NodePtr &right_child, size_t 
         right_node->count = index;
 
         median = node->list[mid];
-        right_node->insert(val, right_child.valid() ? right_child->id : 0, insert_pos - mid - 1);
+        right_node->insert(key, val, right_child.valid() ? right_child->id : 0, insert_pos - mid - 1);
         right_node->children[0] = node->children[node->count + 1];
     }
 }

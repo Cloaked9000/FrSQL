@@ -3,20 +3,22 @@
 
 #include <memory>
 #include <string_view>
-#include "Table.h"
+#include "table/Table.h"
+#include "table/TableStorage.h"
 
 class Database
 {
 public:
-	Database();
+	Database(std::string_view name);
+    ~Database();
 	std::shared_ptr<Table> load_table(tid_t id);
 	std::vector<tid_t> list_table_ids();
 	std::shared_ptr<Table> create_table(std::string name, std::vector<ColumnMetadata> columns);
-	[[nodiscard]] tid_t lookup_table(std::string_view name) const;
+	[[nodiscard]] std::optional<tid_t> lookup_table(std::string_view name) const;
+
 private:
-	tid_t current_tid;
-	std::unordered_map<tid_t, std::shared_ptr<Table>> tables;
-	std::unordered_map<std::string_view, tid_t> table_lookup;
+    std::unique_ptr<Filesystem> filesystem;
+    std::unique_ptr<TableStorage> tables;
 };
 
 #endif // TESTDB_DATABASE

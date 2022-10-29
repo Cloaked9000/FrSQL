@@ -63,20 +63,21 @@ public:
             return ref != nullptr;
         }
 
-        uint64_t read(char *buf, uint64_t len)
+        uint64_t read(void *buf, uint64_t len)
         {
-            return fs->read(ref, buf, len);
+            return fs->read(ref, static_cast<char *>(buf), len);
         }
 
-        void write(char *buf, uint64_t len)
+        void write(const char *buf, uint64_t len)
         {
             fs->write(ref, buf, len);
         }
 
-        void seek(uint64_t position)
+        uint64_t seek(uint64_t position)
         {
-            fs->seek(ref, position);
+            return fs->seek(ref, position);
         }
+
         uint64_t tell()
         {
             return fs->tell(ref);
@@ -92,8 +93,8 @@ public:
     virtual void *open(const std::string &name, bool create) = 0;
     virtual void close(void *handle) = 0;
     virtual uint64_t read(void *handle, char *buf, uint64_t len) = 0;
-    virtual void write(void *handle, char *buf, uint64_t len) = 0;
-    virtual void seek(void *handle, uint64_t position) = 0;
+    virtual void write(void *handle, const char *buf, uint64_t len) = 0;
+    virtual uint64_t seek(void *handle, uint64_t position) = 0;
     virtual uint64_t tell(void *handle) = 0;
 };
 
