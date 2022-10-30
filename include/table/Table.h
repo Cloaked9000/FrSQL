@@ -52,9 +52,9 @@ public:
     explicit TreeTable(TableMetadata meta, Filesystem *filesystem)
     : Table(std::move(meta)), filesystem(filesystem)
     {
-        auto data_index = Filesystem::Handle(filesystem, filesystem->open(metadata.name + ".index", true));
-        auto data_data = Filesystem::Handle(filesystem, filesystem->open(metadata.name + ".data", true));
-        auto index_tree = Filesystem::Handle(filesystem, filesystem->open(metadata.name + ".tree", true));
+        auto data_index = filesystem->open(metadata.name + ".index", true);
+        auto data_data = filesystem->open(metadata.name + ".data", true);
+        auto index_tree = filesystem->open(metadata.name + ".tree", true);
         row_store = std::make_unique<RowStorage>(metadata, std::move(data_index), std::move(data_data));
         index.open(std::move(index_tree));
     }
@@ -103,123 +103,4 @@ private:
     rid_t current_rid = 0;
     Tree index;
 };
-
-/*
-class InMemoryTable : public Table
-{
-public:
-
-    explicit InMemoryTable(TableMetadata meta)
-    : Table(std::move(meta))
-    {
-
-    }
-
-    [[nodiscard]] rid_t insert() override
-    {
-        rows.emplace_back();
-        for (auto& col : get_metadata().columns)
-        {
-            rows.back().column.emplace_back();
-            rows.back().column.back().type = col.type;
-            switch(col.type)
-            {
-                case Variable::Type::INT:
-                    rows.back().column.back().store.int64 = 0;
-                    break;
-                case Variable::Type::STRING:
-                    strings.emplace_back("", 0);
-                    rows.back().column.back().store.str = strings.back().data();
-                    break;
-                default:
-                    abort();
-            }
-        }
-
-        return rows.size() - 1;
-    }
-
-    void erase(rid_t row_id) override
-    {
-        //If string, remove from string store
-        for(auto &col : rows[row_id].column)
-        {
-            if(col.type != Variable::Type::STRING)
-            {
-                continue;
-            }
-
-            auto iter = std::find_if(strings.begin(), strings.end(), [addr = col.store.str](const auto &str) {
-                return str.data() == addr;
-            });
-
-            if(iter == strings.end())
-            {
-                // String data is missing?!?
-                abort();
-            }
-
-            strings.erase(iter);
-        }
-
-
-
-        rows.erase(rows.begin() + row_id);
-    }
-
-    [[nodiscard]] Variable load(rid_t row_id, cid_t col_id) override
-    {
-        return Variable(rows[row_id].column[col_id]);
-    }
-
-    void update(rid_t row_id, cid_t col_id, Variable new_val) override
-    {
-        Variable &old_val = rows[row_id].column[col_id];
-        if(old_val.type != new_val.type)
-        {
-            throw SemanticError("New column value is of different type to old!");
-        }
-
-        // If it's a string and we're overwriting it, update string store
-        if(old_val.type == Variable::Type::STRING)
-        {
-            auto iter = std::find_if(strings.begin(), strings.end(), [addr = old_val.store.str](const auto &str) {
-                return str.data() == addr;
-            });
-
-            if(iter == strings.end())
-            {
-                // String data is missing?!?
-                abort();
-            }
-
-            // Update to contain new string
-            *iter = std::string(new_val.store.str, new_val.store.len);
-        }
-
-        // Store new data
-        old_val = new_val;
-    }
-
-    void clear() override
-    {
-        strings.clear();
-        rows.clear();
-    }
-
-    [[nodiscard]] rid_t get_row_count() const override
-    {
-        return rows.size();
-    }
-
-private:
-    struct Row
-    {
-        std::vector<Variable> column;
-    };
-
-    std::vector<Row> rows;
-    std::list<std::string> strings;
-};
-*/
 #endif //TESTDB_TABLE_H

@@ -23,9 +23,37 @@ int main(int argc, char **argv)
         }
 #endif
 
+    std::unique_ptr<FilesystemBacking> backing;
+    if(argc > 1)
+    {
+        const std::string filepath(argv[1]);
+        backing = std::make_unique<DiskBacking>();
+        if(!backing->open(filepath, false))
+        {
+            if(!backing->open(filepath, true))
+            {
+                std::cout << "Failed to open/create database file '" << filepath << "'\n";
+                return EXIT_FAILURE;
+            }
+            else
+            {
+                std::cout << "Created new database file '" << filepath << "'\n";
+            }
+            BasicFilesystem::Format(backing);
+        }
+        else
+        {
+            std::cout << "Opened existing database file '" << filepath << "'\n";
+        }
+    }
+    else
+    {
+        std::cout << "No database filepath provided. Using an in-memory backing.\n";
+        backing = std::make_unique<MemoryBacking>();
+        BasicFilesystem::Format(backing);
+    }
 
-
-    Frsql frsql;
+    Frsql frsql(std::make_unique<BasicFilesystem>(std::move(backing)));
 
 
 //    auto begin = std::chrono::steady_clock::now();

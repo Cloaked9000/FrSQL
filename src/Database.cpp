@@ -1,21 +1,10 @@
 #include "Database.h"
 #include "filesystem/BasicFilesystem.h"
 
-Database::Database(std::string_view name)
+Database::Database(std::unique_ptr<Filesystem> filesystem_)
+: filesystem(std::move(filesystem_))
 {
-    std::unique_ptr<FilesystemBacking> backing(new DiskBacking());
-    if(!backing->open("testdb.db", false))
-    {
-        if(!backing->open("testdb.db", true))
-        {
-            throw DatabaseError("Failed to open database");
-        }
-        BasicFilesystem::Format(backing);
-    }
-
-    filesystem = std::make_unique<BasicFilesystem>(std::move(backing));
-
-    auto tableFile = Filesystem::Handle(filesystem.get(), filesystem->open("TABLE_STORAGE", true));
+    auto tableFile = filesystem->open("TABLE_STORAGE", true);
     tables = std::make_unique<TableStorage>(std::move(tableFile));
 }
 

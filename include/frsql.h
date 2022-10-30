@@ -9,9 +9,9 @@
 class Frsql
 {
 public:
-    Frsql()
+    explicit Frsql(std::unique_ptr<Filesystem> filesystem)
     {
-        database = std::make_shared<Database>("MyDB");
+        database = std::make_shared<Database>(std::move(filesystem));
         vm = std::make_unique<QueryVM>(database);
         lexer = std::make_shared<Lexer>();
         parser = std::make_unique<Parser>(database, lexer);

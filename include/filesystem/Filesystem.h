@@ -90,7 +90,7 @@ public:
     };
 
     virtual ~Filesystem()=default;
-    virtual void *open(const std::string &name, bool create) = 0;
+    virtual Handle open(const std::string &name, bool create) = 0;
     virtual void close(void *handle) = 0;
     virtual uint64_t read(void *handle, char *buf, uint64_t len) = 0;
     virtual void write(void *handle, const char *buf, uint64_t len) = 0;

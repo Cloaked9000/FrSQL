@@ -5,7 +5,7 @@
 #ifndef TESTDB_FILESYSTEMBACKING_H
 #define TESTDB_FILESYSTEMBACKING_H
 
-
+#include <fstream>
 #include <string>
 
 class FilesystemBacking
@@ -93,11 +93,6 @@ private:
 class MemoryBacking : public FilesystemBacking
 {
 public:
-    explicit MemoryBacking(std::string *buffer)
-    : buffer(buffer)
-    {
-
-    }
 
     [[nodiscard]] bool open(const std::string &, bool) override
     {
@@ -106,24 +101,24 @@ public:
 
     [[nodiscard]] bool write(const char *buf, uint64_t buflen) override
     {
-        if(cursor + buflen > buffer->size())
+        if(cursor + buflen > buffer.size())
         {
-            buffer->resize(cursor + buflen);
+            buffer.resize(cursor + buflen);
         }
 
-        memcpy(buffer->data() + cursor, buf, buflen);
+        memcpy(buffer.data() + cursor, buf, buflen);
         cursor += buflen;
         return true;
     }
 
     [[nodiscard]] bool read(char *buf, uint64_t buflen) override
     {
-        if(cursor + buflen > buffer->size())
+        if(cursor + buflen > buffer.size())
         {
             return false;
         }
 
-        memcpy(buf, buffer->data() + cursor, buflen);
+        memcpy(buf, buffer.data() + cursor, buflen);
         return true;
     }
 
@@ -140,7 +135,7 @@ public:
                 cursor = pos;
                 break;
             case std::ios::end:
-                cursor = buffer->size() - pos;
+                cursor = buffer.size() - pos;
                 break;
             case std::ios::cur:
                 cursor += pos;
@@ -149,11 +144,11 @@ public:
                 abort();
         }
 
-        if(cursor > buffer->size())
+        if(cursor > buffer.size())
         {
             __debugbreak();
         }
-        assert(cursor <= buffer->size());
+        assert(cursor <= buffer.size());
     }
 
     [[nodiscard]] bool good() const override
@@ -173,7 +168,7 @@ public:
 
 private:
     uint64_t cursor = 0;
-    std::string *buffer = nullptr;
+    std::string buffer;
 };
 
 #endif //TESTDB_FILESYSTEMBACKING_H

@@ -30,7 +30,7 @@ public:
     void operator=(const BasicFilesystem&&)=delete;
 
     static bool Format(const std::unique_ptr<FilesystemBacking> &backing);
-    void *open(const std::string &name, bool create) override;
+    Filesystem::Handle open(const std::string &name, bool create) override;
     void close(void *handle) override;
     uint64_t read(void *handle_, char *buf, uint64_t len) override;
     void write(void *handle, const char *buf, uint64_t len) override;

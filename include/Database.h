@@ -9,7 +9,7 @@
 class Database
 {
 public:
-	Database(std::string_view name);
+	Database(std::unique_ptr<Filesystem> filesystem);
     ~Database();
 	std::shared_ptr<Table> load_table(tid_t id);
 	std::vector<tid_t> list_table_ids();

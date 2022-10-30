@@ -1,4 +1,6 @@
 #include "TestUtils.h"
+#include "filesystem/FilesystemBacking.h"
+#include "filesystem/BasicFilesystem.h"
 
 struct ValStore
 {
@@ -32,19 +34,24 @@ class SelectTest :public ::testing::TestWithParam<Expected>
 public:
     SelectTest()
     {
-        sql.exec("CREATE TABLE user (id INT, name STRING, age INT);");
-        sql.exec("CREATE TABLE admin (id INT, user_id INT);");
-        sql.exec(R"(INSERT INTO user (id, name, age) VALUES (1, "Garry", 10), (2, "Barry", 15), (3, "Larry", 5);)");
-        sql.exec(R"(INSERT INTO admin (id, user_id) VALUES(1, 2), (1, 3);)");
+        std::unique_ptr<FilesystemBacking> backing = std::make_unique<MemoryBacking>();
+        BasicFilesystem::Format(backing);
+        auto fs = std::make_unique<BasicFilesystem>(std::move(backing));
+        sql = std::make_unique<Frsql>(std::move(fs));
+
+        sql->exec("CREATE TABLE user (id INT, name STRING, age INT);");
+        sql->exec("CREATE TABLE admin (id INT, user_id INT);");
+        sql->exec(R"(INSERT INTO user (id, name, age) VALUES (1, "Garry", 10), (2, "Barry", 15), (3, "Larry", 5);)");
+        sql->exec(R"(INSERT INTO admin (id, user_id) VALUES(1, 2), (1, 3);)");
     }
 protected:
-	Frsql sql;
+	std::unique_ptr<Frsql> sql;
 };
 
 TEST_P(SelectTest, test_select) {
 	Expected query = GetParam();
 	ValStore val;
-	sql.exec(query.query, [&](const row_t& args){val.callback(args);});
+	sql->exec(query.query, [&](const row_t& args){val.callback(args);});
 	ASSERT_EQ(val.rows, query.expected);
 }
 

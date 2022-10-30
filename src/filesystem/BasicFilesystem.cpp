@@ -146,7 +146,7 @@ void BasicFilesystem::write(void *handle_, const char *buf, uint64_t len)
 
 }
 
-void *BasicFilesystem::open(const std::string &name, bool should_create)
+Filesystem::Handle BasicFilesystem::open(const std::string &name, bool should_create)
 {
     auto iter = std::find_if(streams.begin(), streams.end(),  [&name](auto &a) {
         return name.compare(0, name.size(), a.name) == 0;
@@ -156,19 +156,18 @@ void *BasicFilesystem::open(const std::string &name, bool should_create)
     {
         if(!should_create)
         {
-            return nullptr;
+            return {};
         }
 
         create(name);
-        void *h =  open(name, false);
-        return h;
+        return open(name, false);
     }
 
     auto handle = new StreamHandle();
     handle->stream = *iter;
     handle->cursor = sizeof(PAGE_HEADER);
     handle->currentPage = read_page_header(iter->page);
-    return handle;
+    return Filesystem::Handle(this, handle);
 }
 
 PAGE_HEADER BasicFilesystem::read_page_header(uint64_t index)
